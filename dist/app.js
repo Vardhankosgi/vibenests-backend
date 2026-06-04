@@ -1,0 +1,28 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const auth_1 = __importDefault(require("./routes/auth"));
+const bookings_1 = __importDefault(require("./routes/bookings"));
+const users_1 = __importDefault(require("./routes/users"));
+const suites_1 = __importDefault(require("./routes/suites"));
+const addons_1 = __importDefault(require("./routes/addons"));
+const payments_1 = __importDefault(require("./routes/payments"));
+const notifications_1 = __importDefault(require("./routes/notifications"));
+const reports_1 = __importDefault(require("./routes/reports"));
+const app = (0, express_1.default)();
+app.use((0, cors_1.default)());
+app.use(express_1.default.json());
+app.use('/auth', auth_1.default);
+app.use('/bookings', bookings_1.default);
+app.use('/users', users_1.default);
+app.use('/suites', suites_1.default);
+app.use('/addons', addons_1.default);
+app.use('/payments', payments_1.default);
+app.use('/notifications', notifications_1.default);
+app.use('/reports', reports_1.default);
+app.get('/', (req, res) => res.json({ message: 'VibeNests Express API' }));
+exports.default = app;

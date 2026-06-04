@@ -1,0 +1,70 @@
+import express from 'express';
+import { registerUser, loginUser, refreshAccessToken, logout, resetPasswordWithToken } from '../services/auth.service';
+import { createResetTokenForUser } from '../services/password.service';
+import { validateBody } from '../middleware/validate';
+import { registerSchema, loginSchema } from '../validation/schemas';
+
+const router = express.Router();
+
+router.post('/register', validateBody(registerSchema), async (req, res) => {
+  try {
+    const user = await registerUser(req.body);
+    res.status(201).json(user);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/login', validateBody(loginSchema), async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const data = await loginUser(email, password);
+    res.json({ accessToken: data.accessToken, refreshToken: data.refreshToken, user: { id: data.user.id, email: data.user.email, role: data.user.role } });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    const data = await refreshAccessToken(refreshToken);
+    res.json(data);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/logout', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    await logout(refreshToken);
+    res.json({ message: 'Logged out' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const token = await createResetTokenForUser(email);
+    // In production, send token via email/SMS. For now return token (or log)
+    console.log('Password reset token for', email, token);
+    res.json({ message: 'Password reset requested. Check logs for token (dev).' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    await resetPasswordWithToken(token, password);
+    res.json({ message: 'Password reset successful' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+export default router;
