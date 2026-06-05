@@ -30,8 +30,10 @@ export const loginUser = async (email: string, password: string) => {
   const repo = userRepo();
   const user = await repo.findOneBy({ email });
   if (!user) throw new Error('Invalid credentials');
+  if (!user.password) throw new Error('This account uses OTP login. Please use mobile OTP.');
   const ok = await bcrypt.compare(password, user.password);
   if (!ok) throw new Error('Invalid credentials');
+  if (!user.isVerified) throw new Error('Your account is not verified. Please verify your account.');
 
   const accessToken = generateAccessToken(user);
   const refreshEntity = await createRefreshToken(user.id);
@@ -56,13 +58,22 @@ export const logout = async (refreshToken: string) => {
 
 export const resetPasswordWithToken = async (token: string, newPassword: string) => {
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as any;
+    const resetSecret = process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'secret';
+    const payload = jwt.verify(token, resetSecret) as any;
     const repo = userRepo();
     const user = await repo.findOneBy({ id: payload.userId });
     if (!user) throw new Error('User not found');
     user.password = await bcrypt.hash(newPassword, 10);
+    user.isVerified = true;
+    user.isActive = true;
     return repo.save(user);
   } catch (err) {
     throw new Error('Invalid or expired token');
   }
+};
+
+export const generatePasswordResetToken = (userId: number): string => {
+  const resetSecret = process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'secret';
+  const expiresIn = (process.env.JWT_PASSWORD_RESET_EXPIRES_IN || '24h') as SignOptions['expiresIn'];
+  return jwt.sign({ userId }, resetSecret, { expiresIn });
 };

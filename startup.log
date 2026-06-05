@@ -1,0 +1,297 @@
+
+> vibenests-backend-express@0.1.0 dev
+> ts-node-dev --respawn --transpile-only src/index.ts
+
+[INFO] 12:00:05 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.9.3)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:00:07 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:56:11 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\entities\Suite.ts has been modified
+Server started on http://localhost:4000
+[INFO] 12:56:33 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\suites.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:56:35 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:56:52 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\suites.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:56:53 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 13:12:22 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\app.ts has been modified
+Server started on http://localhost:4000
+[INFO] 15:59:56 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\entities\Booking.ts has been modified
+Failed to initialize datasource QueryFailedError: column "endTimeSlot" of relation "booking" already exists
+    at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+    at PostgresQueryRunner.addColumn (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1160:9)
+    at PostgresQueryRunner.addColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1174:13)
+    at RdbmsSchemaBuilder.addNewColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:845:13)
+    at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:227:9)
+    at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+    at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9)
+    at DataSource.initialize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:278:43) {
+  query: 'ALTER TABLE "booking" ADD "endTimeSlot" character varying',
+  parameters: undefined,
+  driverError: error: column "endTimeSlot" of relation "booking" already exists
+      at c:\Users\veera\Desktop\vibenest\backend-express\node_modules\pg\lib\client.js:646:17
+      at processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+      at PostgresQueryRunner.addColumn (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1160:9)
+      at PostgresQueryRunner.addColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1174:13)
+      at RdbmsSchemaBuilder.addNewColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:845:13)
+      at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:227:9)
+      at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+      at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9) {
+    length: 137,
+    severity: 'ERROR',
+    code: '42701',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'tablecmds.c',
+    line: '7350',
+    routine: 'check_for_column_name_collision'
+  },
+  length: 137,
+  severity: 'ERROR',
+  code: '42701',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'tablecmds.c',
+  line: '7350',
+  routine: 'check_for_column_name_collision'
+}
+[INFO] 16:00:08 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\bookings.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 16:00:09 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 16:00:15 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\validation\schemas.ts has been modified
+Server started on http://localhost:4000
+[INFO] 16:00:21 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\bookings.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 16:00:23 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 16:00:31 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\bookings.ts has been modified
+Server started on http://localhost:4000
+[INFO] 17:44:21 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\entities\User.ts has been modified
+Failed to initialize datasource QueryFailedError: column "isActive" of relation "user" already exists
+    at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+    at PostgresQueryRunner.addColumn (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1160:9)
+    at PostgresQueryRunner.addColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1174:13)
+    at RdbmsSchemaBuilder.addNewColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:845:13)
+    at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:227:9)
+    at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+    at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9)
+    at DataSource.initialize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:278:43) {
+  query: 'ALTER TABLE "user" ADD "isActive" boolean NOT NULL DEFAULT false',
+  parameters: undefined,
+  driverError: error: column "isActive" of relation "user" already exists
+      at c:\Users\veera\Desktop\vibenest\backend-express\node_modules\pg\lib\client.js:646:17
+      at processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+      at PostgresQueryRunner.addColumn (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1160:9)
+      at PostgresQueryRunner.addColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1174:13)
+      at RdbmsSchemaBuilder.addNewColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:845:13)
+      at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:227:9)
+      at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+      at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9) {
+    length: 131,
+    severity: 'ERROR',
+    code: '42701',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'tablecmds.c',
+    line: '7350',
+    routine: 'check_for_column_name_collision'
+  },
+  length: 131,
+  severity: 'ERROR',
+  code: '42701',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'tablecmds.c',
+  line: '7350',
+  routine: 'check_for_column_name_collision'
+}
+[INFO] 17:44:32 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 17:44:34 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 17:45:00 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\notifications.service.ts has been modified
+Server started on http://localhost:4000
+[INFO] 17:45:09 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\bookings.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 17:45:10 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 17:45:30 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\bookings.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 17:45:31 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 10:34:56 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\bookings.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 10:34:59 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 10:35:01 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\bookings.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 10:35:02 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:17:25 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\otp.service.ts has been modified
+Server started on http://localhost:4000
+[INFO] 11:17:39 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:17:41 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:51:58 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+[INFO] 11:52:00 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:52:02 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:52:03 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+[INFO] 11:52:04 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:52:06 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:52:07 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Server started on http://localhost:4000
+[INFO] 11:52:20 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:52:22 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:59:52 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\users.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:59:54 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:18:11 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\auth.service.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:18:14 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:28:21 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\users.ts has been modified
+Server started on http://localhost:4000
+[INFO] 12:28:31 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\entities\User.ts has been modified
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:28:34 Error: listen EADDRINUSE: address already in use :::4000

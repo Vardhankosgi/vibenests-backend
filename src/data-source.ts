@@ -6,6 +6,8 @@ import { Suite } from './entities/Suite';
 import { SuiteAvailability } from './entities/SuiteAvailability';
 import { AddOn } from './entities/AddOn';
 import { Payment } from './entities/Payment';
+import { RefreshToken } from './entities/RefreshToken';
+import { OtpCode } from './entities/OtpCode';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -15,6 +17,6 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: true,
   logging: false,
-  entities: [User, Booking, Suite, SuiteAvailability, AddOn, Payment],
+  entities: [User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken, OtpCode],
   migrations: [],
 });

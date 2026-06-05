@@ -5,20 +5,38 @@ import { SuiteAvailability } from '../entities/SuiteAvailability';
 const suiteRepo = () => AppDataSource.getRepository(Suite);
 const availabilityRepo = () => AppDataSource.getRepository(SuiteAvailability);
 
+function parseImages(images: any): string[] {
+  if (Array.isArray(images)) return images;
+  try { return JSON.parse(images); } catch { return []; }
+}
+
 export const createSuite = async (payload: Partial<Suite>) => {
-  const suite = suiteRepo().create(payload);
-  return suiteRepo().save(suite);
+  const data = { ...payload, images: JSON.stringify(payload.images ?? []) } as any;
+  const suite = suiteRepo().create(data);
+  const saved = await suiteRepo().save(suite);
+  saved.images = parseImages(saved.images);
+  return saved;
 };
 
-export const findSuites = async () => suiteRepo().find();
+export const findSuites = async () => {
+  const suites = await suiteRepo().find();
+  return suites.map(s => ({ ...s, images: parseImages(s.images) }));
+};
 
-export const findSuiteById = async (id: number) => suiteRepo().findOne({ where: { id } });
+export const findSuiteById = async (id: number) => {
+  const suite = await suiteRepo().findOne({ where: { id } });
+  if (suite) suite.images = parseImages(suite.images);
+  return suite;
+};
 
 export const updateSuite = async (id: number, payload: Partial<Suite>) => {
   const suite = await suiteRepo().findOneBy({ id });
   if (!suite) throw new Error('Suite not found');
-  suiteRepo().merge(suite, payload);
-  return suiteRepo().save(suite);
+  const data = { ...payload, images: JSON.stringify(payload.images ?? parseImages(suite.images)) } as any;
+  suiteRepo().merge(suite, data);
+  const saved = await suiteRepo().save(suite);
+  saved.images = parseImages(saved.images);
+  return saved;
 };
 
 export const deleteSuite = async (id: number) => {
