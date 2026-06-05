@@ -6,9 +6,12 @@ export class Booking {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'userId' })
   user!: User;
+
+  @Column({ nullable: true })
+  userId?: number;
 
   @Column()
   suiteId!: number;
@@ -24,6 +27,24 @@ export class Booking {
 
   @Column()
   timeSlot!: string;
+
+  @Column({ nullable: true })
+  endTimeSlot?: string;
+
+  @Column({ nullable: true })
+  guestFirstName?: string;
+
+  @Column({ nullable: true })
+  guestLastName?: string;
+
+  @Column({ nullable: true })
+  guestEmail?: string;
+
+  @Column({ nullable: true })
+  guestPhone?: string;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  totalAmount!: number;
 
   @Column({ default: 'pending' })
   status!: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';

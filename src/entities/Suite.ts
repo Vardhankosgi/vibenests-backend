@@ -24,7 +24,7 @@ export class Suite {
   @Column()
   themeType!: string;
 
-  @Column('simple-array', { default: '' })
+  @Column('text', { default: '[]' })
   images!: string[];
 
   @Column({ default: 'available' })

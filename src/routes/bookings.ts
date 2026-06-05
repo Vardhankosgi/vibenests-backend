@@ -1,9 +1,10 @@
 import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { bookingCreateSchema } from '../validation/schemas';
+import { bookingCreateSchema, adminBookingSchema } from '../validation/schemas';
 import {
   createBooking,
+  adminCreateBooking,
   findBookingsForUser,
   findAllBookings,
   findBookingByIdForUser,
@@ -56,6 +57,28 @@ router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
       addOns: payload.addOns,
       date: payload.date,
       timeSlot: payload.timeSlot,
+    });
+    res.status(201).json(booking);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/admin', requireRole('admin'), validateBody(adminBookingSchema), async (req: any, res) => {
+  try {
+    const p = req.body;
+    const booking = await adminCreateBooking({
+      suiteId: p.suiteId,
+      eventType: p.eventType,
+      addOns: (p.addOns || []).map(String),
+      date: p.date,
+      timeSlot: p.timeSlot,
+      endTimeSlot: p.endTimeSlot,
+      guestFirstName: p.guestFirstName,
+      guestLastName: p.guestLastName,
+      guestEmail: p.guestEmail,
+      guestPhone: p.guestPhone,
+      totalAmount: p.totalAmount,
     });
     res.status(201).json(booking);
   } catch (err: any) {

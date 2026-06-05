@@ -1,16 +1,37 @@
 import dotenv from 'dotenv';
 import app from './app';
 import { AppDataSource } from './data-source';
+<<<<<<< HEAD
 import { startOfferCronJobs } from './cron/offerSync.cron';
+=======
+import { User } from './entities/User';
+import bcrypt from 'bcrypt';
+>>>>>>> 7af4c6adba75c2eefbee975e2ac6120efbc2549d
 
 dotenv.config();
 
 const PORT = process.env.PORT || 4000;
 
+async function seedAdmin() {
+  const repo = AppDataSource.getRepository(User);
+  const exists = await repo.findOneBy({ email: 'admin@vibenests.com' });
+  if (!exists) {
+    const hash = await bcrypt.hash('admin1234', 10);
+    const admin = repo.create({ fullName: 'Admin', email: 'admin@vibenests.com', password: hash, role: 'admin', isVerified: true });
+    await repo.save(admin);
+    console.log('Admin seeded: admin@vibenests.com / admin1234');
+  }
+}
+
 AppDataSource.initialize()
+<<<<<<< HEAD
   .then(() => {
     console.log('Database connected');
     startOfferCronJobs();
+=======
+  .then(async () => {
+    await seedAdmin();
+>>>>>>> 7af4c6adba75c2eefbee975e2ac6120efbc2549d
     app.listen(PORT, () => {
       console.log(`Server started on http://localhost:${PORT}`);
     });

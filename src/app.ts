@@ -19,7 +19,7 @@ import offerConfigRoutes from './routes/offerConfiguration';
 import auditLogsRoutes from './routes/auditLogs';
 
 const app = express();
-app.use(cors({ origin: 'http://localhost:5174', credentials: true }));
+app.use(cors());
 app.use(express.json());
 
 // Existing routes

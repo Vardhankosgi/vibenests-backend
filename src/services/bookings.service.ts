@@ -1,6 +1,11 @@
 import { AppDataSource } from '../data-source';
 import { Booking } from '../entities/Booking';
 import { User } from '../entities/User';
+import { Suite } from '../entities/Suite';
+import { AddOn } from '../entities/AddOn';
+import { In } from 'typeorm';
+import { generatePasswordResetToken } from './auth.service';
+import { sendBookingConfirmationEmail, sendPasswordSetupEmail } from './notifications.service';
 
 const repo = () => AppDataSource.getRepository(Booking);
 
@@ -27,6 +32,102 @@ export const createBooking = async (payload: {
     paymentStatus: 'pending',
   } as any);
   return bookingRepo.save(booking);
+};
+
+export const adminCreateBooking = async (payload: {
+  suiteId: number;
+  eventType: string;
+  addOns?: string[];
+  date: string;
+  timeSlot: string;
+  endTimeSlot?: string;
+  guestFirstName: string;
+  guestLastName: string;
+  guestEmail: string;
+  guestPhone: string;
+  totalAmount: number;
+}) => {
+  const bookingRepo = repo();
+  const userRepo = AppDataSource.getRepository(User);
+  const suiteRepo = AppDataSource.getRepository(Suite);
+  const addonRepo = AppDataSource.getRepository(AddOn);
+
+  const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
+  if (exists) throw new Error('Slot already booked for this date and time');
+
+  // ── Upsert guest user ──────────────────────────────────────────────────────
+  const fullName = `${payload.guestFirstName} ${payload.guestLastName}`.trim();
+  let guestUser = await userRepo.findOneBy({ email: payload.guestEmail });
+  const isNewUser = !guestUser;
+  if (!guestUser) {
+    guestUser = userRepo.create({
+      fullName,
+      email: payload.guestEmail,
+      phone: payload.guestPhone,
+      role: 'customer',
+      isVerified: false,
+      isActive: false,
+    });
+    guestUser = await userRepo.save(guestUser);
+  }
+
+  // ── Create booking ─────────────────────────────────────────────────────────
+  const booking = bookingRepo.create({
+    user: { id: guestUser.id } as User,
+    userId: guestUser.id,
+    suiteId: payload.suiteId,
+    eventType: payload.eventType,
+    addOns: payload.addOns || [],
+    date: payload.date,
+    timeSlot: payload.timeSlot,
+    endTimeSlot: payload.endTimeSlot,
+    guestFirstName: payload.guestFirstName,
+    guestLastName: payload.guestLastName,
+    guestEmail: payload.guestEmail,
+    guestPhone: payload.guestPhone,
+    totalAmount: payload.totalAmount,
+    status: 'confirmed',
+    paymentStatus: 'success',
+  } as any);
+  const savedBooking = await bookingRepo.save(booking);
+
+  // ── Resolve suite name & addon names for email ────────────────────────────
+  const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+  const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+
+  let addonNames: string[] = [];
+  if (payload.addOns && payload.addOns.length) {
+    const ids = payload.addOns.map(Number).filter(Boolean);
+    if (ids.length) {
+      const addons = await addonRepo.findBy({ id: In(ids) });
+      addonNames = addons.map((a) => a.name);
+    }
+  }
+
+  // ── Send emails (non-blocking) ────────────────────────────────────────────
+  sendBookingConfirmationEmail({
+    to: payload.guestEmail,
+    guestName: fullName,
+    bookingId: savedBooking.id,
+    suiteName,
+    date: payload.date,
+    startTime: payload.timeSlot,
+    endTime: payload.endTimeSlot ?? '',
+    occasion: payload.eventType,
+    addOns: addonNames,
+    totalAmount: payload.totalAmount,
+  }).catch((e) => console.warn('Booking email failed:', e?.message));
+
+  if (isNewUser) {
+    const resetToken = generatePasswordResetToken(guestUser.id);
+    sendPasswordSetupEmail({
+      to: payload.guestEmail,
+      guestName: fullName,
+      resetToken,
+    }).catch((e) => console.warn('Password setup email failed:', e?.message));
+  }
+
+  return savedBooking;
 };
 
 export const findBookingsForUser = async (userId: number) => {
