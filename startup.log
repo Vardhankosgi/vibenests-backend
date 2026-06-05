@@ -295,3 +295,90 @@ Error: listen EADDRINUSE: address already in use :::4000
     at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:25:9
     at processTicksAndRejections (node:internal/process/task_queues:95:5)
 [ERROR] 12:28:34 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 16:01:06 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\app.ts has been modified
+Compilation error in c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts
+[ERROR] 16:01:06 ⨯ Unable to compile TypeScript:
+src/index.ts(4,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(6,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(9,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(27,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(31,1): error TS1185: Merge conflict marker encountered.
+src/index.ts(34,1): error TS1185: Merge conflict marker encountered.
+
+[INFO] 16:28:24 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts has been modified
+Compilation error in c:\Users\veera\Desktop\vibenest\backend-express\src\data-source.ts
+[ERROR] 16:28:24 ⨯ Unable to compile TypeScript:
+src/data-source.ts(10,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(21,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(23,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(33,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(39,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(41,1): error TS1185: Merge conflict marker encountered.
+
+[INFO] 16:35:21 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\data-source.ts has been modified
+Compilation error in c:\Users\veera\Desktop\vibenest\backend-express\src\data-source.ts
+[ERROR] 16:35:22 ⨯ Unable to compile TypeScript:
+src/data-source.ts(30,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(36,1): error TS1185: Merge conflict marker encountered.
+src/data-source.ts(38,1): error TS1185: Merge conflict marker encountered.
+
+[INFO] 16:35:36 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\data-source.ts has been modified
+Failed to initialize datasource QueryFailedError: duplicate key value violates unique constraint "pg_class_relname_nsp_index"
+    at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+    at PostgresQueryRunner.createTable (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:616:9)
+    at RdbmsSchemaBuilder.createNewTables (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:635:13)
+    at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:225:9)
+    at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+    at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9)
+    at DataSource.initialize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:278:43) {
+  query: `CREATE TABLE "offers" ("id" SERIAL NOT NULL, "title" character varying(100) NOT NULL, "description" text, "discountType" character varying(20) NOT NULL, "discountValue" numeric(10,2) NOT NULL, "maxDiscountAmount" numeric(10,2), "minBookingAmount" numeric(10,2), "applicableTo" character varying(20) NOT NULL DEFAULT 'all', "applicableIds" text, "startDate" TIMESTAMP WITH TIME ZONE NOT NULL, "endDate" TIMESTAMP WITH TIME ZONE NOT NULL, "usageLimit" integer NOT NULL DEFAULT '0', "usedCount" integer NOT NULL DEFAULT '0', "usageLimitPerUser" integer NOT NULL DEFAULT '1', "status" character varying(20) NOT NULL DEFAULT 'active', "isFeatured" boolean NOT NULL DEFAULT false, "createdBy" integer, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "deletedAt" TIMESTAMP, CONSTRAINT "PK_4c88e956195bba85977da21b8f4" PRIMARY KEY ("id"))`,
+  parameters: undefined,
+  driverError: error: duplicate key value violates unique constraint "pg_class_relname_nsp_index"
+      at c:\Users\veera\Desktop\vibenest\backend-express\node_modules\pg\lib\client.js:646:17
+      at processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+      at PostgresQueryRunner.createTable (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:616:9)
+      at RdbmsSchemaBuilder.createNewTables (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:635:13)
+      at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:225:9)
+      at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+      at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9)
+      at DataSource.initialize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:278:43) {
+    length: 256,
+    severity: 'ERROR',
+    code: '23505',
+    detail: 'Key (relname, relnamespace)=(offers_id_seq, 2200) already exists.',
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: 'pg_catalog',
+    table: 'pg_class',
+    column: undefined,
+    dataType: undefined,
+    constraint: 'pg_class_relname_nsp_index',
+    file: 'nbtinsert.c',
+    line: '673',
+    routine: '_bt_check_unique'
+  },
+  length: 256,
+  severity: 'ERROR',
+  code: '23505',
+  detail: 'Key (relname, relnamespace)=(offers_id_seq, 2200) already exists.',
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: 'pg_catalog',
+  table: 'pg_class',
+  column: undefined,
+  dataType: undefined,
+  constraint: 'pg_class_relname_nsp_index',
+  file: 'nbtinsert.c',
+  line: '673',
+  routine: '_bt_check_unique'
+}
