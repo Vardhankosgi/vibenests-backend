@@ -1,0 +1,83 @@
+{
+  "info": { "name": "VibeNests — Offers & Refund API", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "variable": [
+    { "key": "base", "value": "http://localhost:4000" },
+    { "key": "token", "value": "<paste_admin_token_here>" }
+  ],
+  "item": [
+    {
+      "name": "Offers",
+      "item": [
+        { "name": "List Offers", "request": { "method": "GET", "url": "{{base}}/offers", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Active Offers (Public)", "request": { "method": "GET", "url": "{{base}}/offers/active" } },
+        { "name": "Get Offer", "request": { "method": "GET", "url": "{{base}}/offers/1", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Create Offer", "request": { "method": "POST", "url": "{{base}}/offers", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"title\": \"Summer Sale\",\n  \"discountType\": \"percentage\",\n  \"discountValue\": 20,\n  \"startDate\": \"2025-06-01T00:00:00.000Z\",\n  \"endDate\": \"2025-06-30T23:59:59.000Z\",\n  \"status\": \"active\"\n}" } } },
+        { "name": "Update Offer", "request": { "method": "PUT", "url": "{{base}}/offers/1", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"isFeatured\": true }" } } },
+        { "name": "Delete Offer", "request": { "method": "DELETE", "url": "{{base}}/offers/1", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } }
+      ]
+    },
+    {
+      "name": "Coupons",
+      "item": [
+        { "name": "List Coupons", "request": { "method": "GET", "url": "{{base}}/coupons", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Validate Coupon (Public)", "request": { "method": "POST", "url": "{{base}}/coupons/validate", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"code\": \"SAVE20\", \"bookingAmount\": 5000 }" } } },
+        { "name": "Create Coupon", "request": { "method": "POST", "url": "{{base}}/coupons", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"code\": \"SAVE20\",\n  \"discountType\": \"percentage\",\n  \"discountValue\": 20,\n  \"usageLimit\": 100,\n  \"status\": \"active\"\n}" } } }
+      ]
+    },
+    {
+      "name": "Refund Policies",
+      "item": [
+        { "name": "List Policies", "request": { "method": "GET", "url": "{{base}}/refund-policies", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Create Policy", "request": { "method": "POST", "url": "{{base}}/refund-policies", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Standard Policy\",\n  \"isDefault\": true,\n  \"tiers\": [\n    { \"hoursBeforeBooking\": 48, \"refundType\": \"full_refund\", \"refundValue\": 100 },\n    { \"hoursBeforeBooking\": 24, \"refundType\": \"percentage\", \"refundValue\": 50 },\n    { \"hoursBeforeBooking\": 0, \"refundType\": \"no_refund\", \"refundValue\": 0 }\n  ]\n}" } } },
+        { "name": "Add AddOn Rule", "request": { "method": "POST", "url": "{{base}}/refund-policies/1/rules", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"addOnId\": 1, \"addOnName\": \"Decoration\", \"refundType\": \"percentage\", \"refundValue\": 50 }" } } }
+      ]
+    },
+    {
+      "name": "Refund Engine",
+      "item": [
+        { "name": "Calculate Refund", "request": { "method": "POST", "url": "{{base}}/refunds/calculate", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"bookingId\": 1 }" } } },
+        { "name": "Initiate Refund", "request": { "method": "POST", "url": "{{base}}/refunds/initiate", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"bookingId\": 1 }" } } },
+        { "name": "List Refunds", "request": { "method": "GET", "url": "{{base}}/refunds", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Approve Refund", "request": { "method": "PATCH", "url": "{{base}}/refunds/1/process", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"action\": \"approve\" }" } } },
+        { "name": "Reject Refund", "request": { "method": "PATCH", "url": "{{base}}/refunds/1/process", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"action\": \"reject\", \"reason\": \"Policy violation\" }" } } }
+      ]
+    },
+    {
+      "name": "Tax & Charges",
+      "item": [
+        { "name": "Calculate Tax (Public)", "request": { "method": "POST", "url": "{{base}}/tax-charges/calculate", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"amount\": 5000 }" } } },
+        { "name": "List Tax Charges", "request": { "method": "GET", "url": "{{base}}/tax-charges", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Create Tax Charge", "request": { "method": "POST", "url": "{{base}}/tax-charges", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"name\": \"GST\", \"taxCode\": \"GST18\", \"taxType\": \"percentage\", \"taxValue\": 18 }" } } }
+      ]
+    },
+    {
+      "name": "Booking Rules",
+      "item": [
+        { "name": "Rules Map (Public)", "request": { "method": "GET", "url": "{{base}}/booking-rules/map" } },
+        { "name": "List Rules", "request": { "method": "GET", "url": "{{base}}/booking-rules", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Upsert Rule", "request": { "method": "POST", "url": "{{base}}/booking-rules", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"ruleKey\": \"max_advance_booking_days\", \"ruleValue\": \"90\", \"valueType\": \"number\", \"label\": \"Max Advance Booking Days\", \"group\": \"booking\" }" } } }
+      ]
+    },
+    {
+      "name": "Live Celebration Settings",
+      "item": [
+        { "name": "Settings Map (Public)", "request": { "method": "GET", "url": "{{base}}/live-celebration-settings/map" } },
+        { "name": "List Settings", "request": { "method": "GET", "url": "{{base}}/live-celebration-settings", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Upsert Setting", "request": { "method": "POST", "url": "{{base}}/live-celebration-settings", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"settingKey\": \"max_guests\", \"settingValue\": \"20\", \"valueType\": \"number\", \"label\": \"Max Guests\", \"group\": \"capacity\" }" } } }
+      ]
+    },
+    {
+      "name": "Offer Configurations",
+      "item": [
+        { "name": "Config Map", "request": { "method": "GET", "url": "{{base}}/offer-configurations/map", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } },
+        { "name": "Upsert Config", "request": { "method": "POST", "url": "{{base}}/offer-configurations", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{ \"configKey\": \"max_offers_per_booking\", \"configValue\": \"1\", \"valueType\": \"number\", \"label\": \"Max Offers Per Booking\" }" } } }
+      ]
+    },
+    {
+      "name": "Audit Logs",
+      "item": [
+        { "name": "List Audit Logs", "request": { "method": "GET", "url": "{{base}}/audit-logs?entityType=Offer", "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }] } }
+      ]
+    }
+  ]
+}
