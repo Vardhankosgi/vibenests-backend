@@ -386,3 +386,94 @@ Failed to initialize datasource QueryFailedError: duplicate key value violates u
 Database connected
 [CRON] Offer status sync started (every 15 min)
 Server started on http://localhost:4000
+[INFO] 11:02:53 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\bookings.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000
+[INFO] 11:02:58 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\validation\schemas.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000
+[INFO] 11:03:32 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:03:33 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:03:44 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\payments.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:03:45 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 14:40:27 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\entities\Suite.ts has been modified
+Failed to initialize datasource QueryFailedError: column "minCapacity" of relation "suite" already exists
+    at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:325:19)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+    at PostgresQueryRunner.addColumn (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1160:9)
+    at PostgresQueryRunner.addColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1174:13)
+    at RdbmsSchemaBuilder.addNewColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:845:13)
+    at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:227:9)
+    at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+    at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9)
+    at DataSource.initialize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:278:43) {
+  query: `ALTER TABLE "suite" ADD "minCapacity" integer NOT NULL DEFAULT '1'`,
+  parameters: undefined,
+  driverError: error: column "minCapacity" of relation "suite" already exists
+      at c:\Users\veera\Desktop\vibenest\backend-express\node_modules\pg\lib\client.js:646:17
+      at processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at PostgresQueryRunner.query (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:254:25)
+      at PostgresQueryRunner.executeQueries (c:\Users\veera\Desktop\vibenest\backend-express\src\query-runner\BaseQueryRunner.ts:681:13)
+      at PostgresQueryRunner.addColumn (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1160:9)
+      at PostgresQueryRunner.addColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\driver\postgres\PostgresQueryRunner.ts:1174:13)
+      at RdbmsSchemaBuilder.addNewColumns (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:845:13)
+      at RdbmsSchemaBuilder.executeSchemaSyncOperationsInProperOrder (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:227:9)
+      at RdbmsSchemaBuilder.build (c:\Users\veera\Desktop\vibenest\backend-express\src\schema-builder\RdbmsSchemaBuilder.ts:95:13)
+      at DataSource.synchronize (c:\Users\veera\Desktop\vibenest\backend-express\src\data-source\DataSource.ts:340:9) {
+    length: 135,
+    severity: 'ERROR',
+    code: '42701',
+    detail: undefined,
+    hint: undefined,
+    position: undefined,
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'tablecmds.c',
+    line: '7350',
+    routine: 'check_for_column_name_collision'
+  },
+  length: 135,
+  severity: 'ERROR',
+  code: '42701',
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'tablecmds.c',
+  line: '7350',
+  routine: 'check_for_column_name_collision'
+}

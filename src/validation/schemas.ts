@@ -14,10 +14,21 @@ export const loginSchema = z.object({
 
 export const bookingCreateSchema = z.object({
   suiteId: z.number().int().positive(),
+  suiteName: z.string().optional(),
   eventType: z.string().min(2).optional(),
   addOns: z.array(z.string()).optional(),
   date: z.string().min(8),
   timeSlot: z.string().min(1),
+  endTimeSlot: z.string().optional(),
+  persons: z.number().int().positive().optional(),
+  basePrice: z.number().min(0).optional(),
+  addonsTotal: z.number().min(0).optional(),
+  savings: z.number().min(0).optional(),
+  serviceFee: z.number().min(0).optional(),
+  taxes: z.number().min(0).optional(),
+  totalAmount: z.number().min(0).optional(),
+  paymentMode: z.enum(['pay_now', 'pay_at_venue']).optional(),
+  advanceAmount: z.number().min(0).optional(),
 });
 
 export const adminBookingSchema = z.object({

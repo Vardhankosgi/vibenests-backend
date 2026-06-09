@@ -16,6 +16,9 @@ export class Booking {
   @Column()
   suiteId!: number;
 
+  @Column({ nullable: true })
+  suiteName?: string;
+
   @Column()
   eventType!: string;
 
@@ -43,8 +46,32 @@ export class Booking {
   @Column({ nullable: true })
   guestPhone?: string;
 
+  @Column({ type: 'int', default: 1 })
+  persons!: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  basePrice!: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  addonsTotal!: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  savings!: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  serviceFee!: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  taxes!: number;
+
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   totalAmount!: number;
+
+  @Column({ default: 'pay_now' })
+  paymentMode!: 'pay_now' | 'pay_at_venue';
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  advanceAmount!: number;
 
   @Column({ default: 'pending' })
   status!: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded';

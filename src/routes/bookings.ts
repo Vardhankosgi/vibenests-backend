@@ -53,10 +53,21 @@ router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
     const booking = await createBooking({
       userId: req.user.id,
       suiteId: payload.suiteId,
+      suiteName: payload.suiteName,
       eventType: payload.eventType || 'General Event',
       addOns: payload.addOns,
       date: payload.date,
       timeSlot: payload.timeSlot,
+      endTimeSlot: payload.endTimeSlot,
+      persons: payload.persons,
+      basePrice: payload.basePrice,
+      addonsTotal: payload.addonsTotal,
+      savings: payload.savings,
+      serviceFee: payload.serviceFee,
+      taxes: payload.taxes,
+      totalAmount: payload.totalAmount,
+      paymentMode: payload.paymentMode,
+      advanceAmount: payload.advanceAmount,
     });
     res.status(201).json(booking);
   } catch (err: any) {

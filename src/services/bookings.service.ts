@@ -12,10 +12,21 @@ const repo = () => AppDataSource.getRepository(Booking);
 export const createBooking = async (payload: {
   userId: number;
   suiteId: number;
+  suiteName?: string;
   eventType: string;
   addOns?: string[];
   date: string;
   timeSlot: string;
+  endTimeSlot?: string;
+  persons?: number;
+  basePrice?: number;
+  addonsTotal?: number;
+  savings?: number;
+  serviceFee?: number;
+  taxes?: number;
+  totalAmount?: number;
+  paymentMode?: 'pay_now' | 'pay_at_venue';
+  advanceAmount?: number;
 }) => {
   const bookingRepo = repo();
   const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
@@ -24,10 +35,21 @@ export const createBooking = async (payload: {
   const booking = bookingRepo.create({
     user: { id: payload.userId } as User,
     suiteId: payload.suiteId,
+    suiteName: payload.suiteName,
     eventType: payload.eventType,
     addOns: payload.addOns || [],
     date: payload.date,
     timeSlot: payload.timeSlot,
+    endTimeSlot: payload.endTimeSlot,
+    persons: payload.persons ?? 1,
+    basePrice: payload.basePrice ?? 0,
+    addonsTotal: payload.addonsTotal ?? 0,
+    savings: payload.savings ?? 0,
+    serviceFee: payload.serviceFee ?? 0,
+    taxes: payload.taxes ?? 0,
+    totalAmount: payload.totalAmount ?? 0,
+    paymentMode: payload.paymentMode ?? 'pay_now',
+    advanceAmount: payload.advanceAmount ?? 0,
     status: 'pending',
     paymentStatus: 'pending',
   } as any);
