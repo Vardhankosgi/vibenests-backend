@@ -12,11 +12,20 @@ export class Suite {
   @Column('text')
   description!: string;
 
+  @Column('int', { default: 1 })
+  minCapacity!: number;
+
   @Column('int')
   capacity!: number;
 
   @Column('decimal', { precision: 10, scale: 2 })
   price!: number;
+
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  ratePerExtraPerson!: number;
+
+  @Column('decimal', { precision: 5, scale: 2, default: 0 })
+  baseDiscount!: number;
 
   @Column('simple-array', { default: '' })
   amenities!: string[];
