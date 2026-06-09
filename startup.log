@@ -382,3 +382,7 @@ Failed to initialize datasource QueryFailedError: duplicate key value violates u
   line: '673',
   routine: '_bt_check_unique'
 }
+[INFO] 17:20:01 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\suites.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000

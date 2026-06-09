@@ -10,22 +10,36 @@ function parseImages(images: any): string[] {
   try { return JSON.parse(images); } catch { return []; }
 }
 
+function parseAmenities(val: any): string[] {
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (!val || val === '') return [];
+  return String(val).split(',').map((s) => s.trim()).filter(Boolean);
+}
+
 export const createSuite = async (payload: Partial<Suite>) => {
   const data = { ...payload, images: JSON.stringify(payload.images ?? []) } as any;
   const suite = suiteRepo().create(data);
   const saved = await suiteRepo().save(suite);
   saved.images = parseImages(saved.images);
+  (saved as any).amenities = parseAmenities(saved.amenities);
   return saved;
 };
 
 export const findSuites = async () => {
   const suites = await suiteRepo().find();
-  return suites.map(s => ({ ...s, images: parseImages(s.images) }));
+  return suites.map(s => ({
+    ...s,
+    images: parseImages(s.images),
+    amenities: parseAmenities(s.amenities),
+  }));
 };
 
 export const findSuiteById = async (id: number) => {
   const suite = await suiteRepo().findOne({ where: { id } });
-  if (suite) suite.images = parseImages(suite.images);
+  if (suite) {
+    suite.images = parseImages(suite.images);
+    (suite as any).amenities = parseAmenities(suite.amenities);
+  }
   return suite;
 };
 
@@ -36,6 +50,7 @@ export const updateSuite = async (id: number, payload: Partial<Suite>) => {
   suiteRepo().merge(suite, data);
   const saved = await suiteRepo().save(suite);
   saved.images = parseImages(saved.images);
+  (saved as any).amenities = parseAmenities(saved.amenities);
   return saved;
 };
 
