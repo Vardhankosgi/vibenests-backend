@@ -28,6 +28,10 @@ __decorate([
     __metadata("design:type", String)
 ], Suite.prototype, "description", void 0);
 __decorate([
+    (0, typeorm_1.Column)('int', { default: 1 }),
+    __metadata("design:type", Number)
+], Suite.prototype, "minCapacity", void 0);
+__decorate([
     (0, typeorm_1.Column)('int'),
     __metadata("design:type", Number)
 ], Suite.prototype, "capacity", void 0);
@@ -35,6 +39,14 @@ __decorate([
     (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2 }),
     __metadata("design:type", Number)
 ], Suite.prototype, "price", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Suite.prototype, "ratePerExtraPerson", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 5, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Suite.prototype, "baseDiscount", void 0);
 __decorate([
     (0, typeorm_1.Column)('simple-array', { default: '' }),
     __metadata("design:type", Array)
@@ -44,7 +56,7 @@ __decorate([
     __metadata("design:type", String)
 ], Suite.prototype, "themeType", void 0);
 __decorate([
-    (0, typeorm_1.Column)('simple-array', { default: '' }),
+    (0, typeorm_1.Column)('text', { default: '[]' }),
     __metadata("design:type", Array)
 ], Suite.prototype, "images", void 0);
 __decorate([

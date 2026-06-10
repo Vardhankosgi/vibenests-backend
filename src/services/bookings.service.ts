@@ -177,6 +177,7 @@ export const updateBookingPaymentStatus = async (id: number, paymentStatus: Book
   return repo().save(booking);
 };
 
+
 export const cancelBooking = async (id: number, userId: number) => {
   const booking = await repo().findOne({ where: { id, user: { id: userId } } as any });
   if (!booking) throw new Error('Booking not found');

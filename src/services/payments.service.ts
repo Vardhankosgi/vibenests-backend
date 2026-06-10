@@ -28,21 +28,29 @@ export const createRazorpayOrder = async (bookingId: number, amount: number, met
   const payment = repo().create({ bookingId, amount, method, provider: 'razorpay', status: 'pending' });
   const saved = await repo().save(payment);
 
-  if (razor) {
-    try {
-      const order = await razor.orders.create({
-        amount: Math.round(amount * 100),
-        currency: 'INR',
-        receipt: `rcpt_${saved.id}`,
-      });
-      saved.providerOrderId = order.id;
-      await repo().save(saved);
-      return { payment: saved, orderId: order.id, keyId: process.env.RAZORPAY_KEY_ID };
-    } catch (err) {
-      console.warn('Razorpay order create failed', err);
-    }
+  // Fail loudly if Razorpay is not configured.
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay is not configured. Missing RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET in environment.');
   }
-  return { payment: saved, orderId: null, keyId: process.env.RAZORPAY_KEY_ID || '' };
+  if (!razor) {
+    // Should not happen if env checks above are correct, but keep it safe.
+    throw new Error('Razorpay client was not initialized. Check Razorpay env credentials.');
+  }
+
+  try {
+    const order = await razor.orders.create({
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      receipt: `rcpt_${saved.id}`,
+    });
+    saved.providerOrderId = order.id;
+    await repo().save(saved);
+    return { payment: saved, orderId: order.id, keyId: process.env.RAZORPAY_KEY_ID };
+  } catch (err: any) {
+    console.warn('Razorpay order create failed', err);
+    // Bubble up the real Razorpay error to the frontend.
+    throw new Error(err?.message || 'Unable to create Razorpay order');
+  }
 };
 
 export const createPaymentIntent = async (bookingId: number, amount: number, method: string) => {
@@ -85,7 +93,45 @@ export const verifyAndConfirmPayment = async (
   await repo().save(payment);
 
   await updateBookingPaymentStatus(payment.bookingId, 'success');
-  await updateBookingStatus(payment.bookingId, 'confirmed');
+
+  // Confirm full booking only after full payment (pay_now).
+  // For pay_at_venue, this is advance-only, so booking remains pending.
+  // payment.booking may not be loaded in all contexts, so read from DB.
+  const bookingForMode = await AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } }) as any;
+  if (bookingForMode?.paymentMode === 'pay_now') {
+    await updateBookingStatus(payment.bookingId, 'confirmed');
+  }
+
+  // Ensure booking guest details exist (frontend depends on these fields).
+  // If booking-level guest fields are empty, copy from linked user record.
+  try {
+    const bookingRepo = AppDataSource.getRepository('Booking');
+    const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] }) as any;
+
+    if (booking?.user) {
+      // Always backfill from booking.user (guest/customer) because some admin/payment flows
+      // may create bookings without copying guest fields.
+      // This avoids accidentally showing admin details.
+      const shouldBackfill = true;
+
+      if (shouldBackfill) {
+        const fullName = booking.user?.fullName || '';
+
+        const [firstName, ...rest] = String(fullName).split(' ');
+        const lastName = rest.join(' ');
+
+        await bookingRepo.save({
+          id: booking.id,
+          guestFirstName: firstName || booking.user?.fullName || undefined,
+          guestLastName: lastName || undefined,
+          guestEmail: booking.user?.email || undefined,
+          guestPhone: booking.user?.phone || undefined,
+        });
+      }
+    }
+  } catch (err) {
+    console.warn('Guest backfill failed', err);
+  }
 
   // Send confirmation email
   try {
@@ -107,6 +153,7 @@ export const verifyAndConfirmPayment = async (
   }
 
   return payment;
+
 };
 
 export const verifyPayment = async (paymentId: number, result: { status: 'success' | 'failed'; providerPaymentId?: string; providerOrderId?: string; providerSignature?: string }) => {
@@ -118,7 +165,14 @@ export const verifyPayment = async (paymentId: number, result: { status: 'succes
   payment.providerSignature = result.providerSignature;
   await repo().save(payment);
   await updateBookingPaymentStatus(payment.bookingId, result.status === 'success' ? 'success' : 'failed');
-  if (result.status === 'success') await updateBookingStatus(payment.bookingId, 'confirmed');
+  if (result.status === 'success') {
+    // Confirm full booking only after full payment (pay_now).
+    // For pay_at_venue, keep booking pending after advance succeeds.
+    const b = await AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } });
+    if ((b as any)?.paymentMode === 'pay_now') {
+      await updateBookingStatus(payment.bookingId, 'confirmed');
+    }
+  }
   try {
     const bookingRepo = AppDataSource.getRepository('Booking');
     const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });

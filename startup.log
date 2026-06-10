@@ -477,3 +477,113 @@ Failed to initialize datasource QueryFailedError: column "minCapacity" of relati
   line: '7350',
   routine: 'check_for_column_name_collision'
 }
+[INFO] 17:03:33 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 17:03:39 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 17:03:41 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000
+[INFO] 17:03:59 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000
+Razorpay order create failed {
+  statusCode: 401,
+  error: { description: 'Authentication failed', code: 'BAD_REQUEST_ERROR' }
+}
+Razorpay order create failed {
+  statusCode: 401,
+  error: { code: 'BAD_REQUEST_ERROR', description: 'Authentication failed' }
+}
+Razorpay order create failed {
+  statusCode: 401,
+  error: { code: 'BAD_REQUEST_ERROR', description: 'Authentication failed' }
+}
+[INFO] 09:54:39 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 09:54:47 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:37:22 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\bookings.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:37:28 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 11:38:11 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000
+[INFO] 11:52:11 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 11:52:16 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:04:58 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Compilation error in c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts
+[ERROR] 12:05:02 ⨯ Unable to compile TypeScript:
+src/services/payments.service.ts(90,33): error TS1109: Expression expected.
+
+[INFO] 12:05:39 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\services\payments.service.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:05:42 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:45:46 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\bookings.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:45:53 Error: listen EADDRINUSE: address already in use :::4000
+[INFO] 12:55:04 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\bookings.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Server started on http://localhost:4000
+[INFO] 12:55:17 Restarting: c:\Users\veera\Desktop\vibenest\backend-express\src\routes\bookings.ts has been modified
+Database connected
+[CRON] Offer status sync started (every 15 min)
+Error: listen EADDRINUSE: address already in use :::4000
+    at Server.setupListenHandle [as _listen2] (node:net:1908:16)
+    at listenInCluster (node:net:1965:12)
+    at Server.listen (node:net:2067:7)
+    at Function.listen (c:\Users\veera\Desktop\vibenest\backend-express\node_modules\express\lib\application.js:635:24)
+    at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+[ERROR] 12:55:23 Error: listen EADDRINUSE: address already in use :::4000

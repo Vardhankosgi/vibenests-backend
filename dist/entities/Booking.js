@@ -20,14 +20,22 @@ __decorate([
     __metadata("design:type", Number)
 ], Booking.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.ManyToOne)(() => User_1.User),
+    (0, typeorm_1.ManyToOne)(() => User_1.User, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'userId' }),
     __metadata("design:type", User_1.User)
 ], Booking.prototype, "user", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Number)
+], Booking.prototype, "userId", void 0);
+__decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", Number)
 ], Booking.prototype, "suiteId", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "suiteName", void 0);
 __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
@@ -44,6 +52,62 @@ __decorate([
     (0, typeorm_1.Column)(),
     __metadata("design:type", String)
 ], Booking.prototype, "timeSlot", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "endTimeSlot", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "guestFirstName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "guestLastName", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "guestEmail", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "guestPhone", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 1 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "persons", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "basePrice", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "addonsTotal", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "savings", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "serviceFee", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "taxes", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "totalAmount", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'pay_now' }),
+    __metadata("design:type", String)
+], Booking.prototype, "paymentMode", void 0);
+__decorate([
+    (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "advanceAmount", void 0);
 __decorate([
     (0, typeorm_1.Column)({ default: 'pending' }),
     __metadata("design:type", String)
