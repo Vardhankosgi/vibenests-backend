@@ -1,8 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.createBooking = void 0;
+exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.adminCreateBooking = exports.createBooking = void 0;
 const data_source_1 = require("../data-source");
 const Booking_1 = require("../entities/Booking");
+const User_1 = require("../entities/User");
+const Suite_1 = require("../entities/Suite");
+const AddOn_1 = require("../entities/AddOn");
+const typeorm_1 = require("typeorm");
+const auth_service_1 = require("./auth.service");
+const notifications_service_1 = require("./notifications.service");
 const repo = () => data_source_1.AppDataSource.getRepository(Booking_1.Booking);
 const createBooking = async (payload) => {
     const bookingRepo = repo();
@@ -12,16 +18,104 @@ const createBooking = async (payload) => {
     const booking = bookingRepo.create({
         user: { id: payload.userId },
         suiteId: payload.suiteId,
+        suiteName: payload.suiteName,
         eventType: payload.eventType,
         addOns: payload.addOns || [],
         date: payload.date,
         timeSlot: payload.timeSlot,
+        endTimeSlot: payload.endTimeSlot,
+        persons: payload.persons ?? 1,
+        basePrice: payload.basePrice ?? 0,
+        addonsTotal: payload.addonsTotal ?? 0,
+        savings: payload.savings ?? 0,
+        serviceFee: payload.serviceFee ?? 0,
+        taxes: payload.taxes ?? 0,
+        totalAmount: payload.totalAmount ?? 0,
+        paymentMode: payload.paymentMode ?? 'pay_now',
+        advanceAmount: payload.advanceAmount ?? 0,
         status: 'pending',
         paymentStatus: 'pending',
     });
     return bookingRepo.save(booking);
 };
 exports.createBooking = createBooking;
+const adminCreateBooking = async (payload) => {
+    const bookingRepo = repo();
+    const userRepo = data_source_1.AppDataSource.getRepository(User_1.User);
+    const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
+    const addonRepo = data_source_1.AppDataSource.getRepository(AddOn_1.AddOn);
+    const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
+    if (exists)
+        throw new Error('Slot already booked for this date and time');
+    // ── Upsert guest user ──────────────────────────────────────────────────────
+    const fullName = `${payload.guestFirstName} ${payload.guestLastName}`.trim();
+    let guestUser = await userRepo.findOneBy({ email: payload.guestEmail });
+    const isNewUser = !guestUser;
+    if (!guestUser) {
+        guestUser = userRepo.create({
+            fullName,
+            email: payload.guestEmail,
+            phone: payload.guestPhone,
+            role: 'customer',
+            isVerified: false,
+            isActive: false,
+        });
+        guestUser = await userRepo.save(guestUser);
+    }
+    // ── Create booking ─────────────────────────────────────────────────────────
+    const booking = bookingRepo.create({
+        user: { id: guestUser.id },
+        userId: guestUser.id,
+        suiteId: payload.suiteId,
+        eventType: payload.eventType,
+        addOns: payload.addOns || [],
+        date: payload.date,
+        timeSlot: payload.timeSlot,
+        endTimeSlot: payload.endTimeSlot,
+        guestFirstName: payload.guestFirstName,
+        guestLastName: payload.guestLastName,
+        guestEmail: payload.guestEmail,
+        guestPhone: payload.guestPhone,
+        totalAmount: payload.totalAmount,
+        status: 'confirmed',
+        paymentStatus: 'success',
+    });
+    const savedBooking = await bookingRepo.save(booking);
+    // ── Resolve suite name & addon names for email ────────────────────────────
+    const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+    const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+    let addonNames = [];
+    if (payload.addOns && payload.addOns.length) {
+        const ids = payload.addOns.map(Number).filter(Boolean);
+        if (ids.length) {
+            const addons = await addonRepo.findBy({ id: (0, typeorm_1.In)(ids) });
+            addonNames = addons.map((a) => a.name);
+        }
+    }
+    // ── Send emails (non-blocking) ────────────────────────────────────────────
+    (0, notifications_service_1.sendBookingConfirmationEmail)({
+        to: payload.guestEmail,
+        guestName: fullName,
+        bookingId: savedBooking.id,
+        suiteName,
+        date: payload.date,
+        startTime: payload.timeSlot,
+        endTime: payload.endTimeSlot ?? '',
+        occasion: payload.eventType,
+        addOns: addonNames,
+        totalAmount: payload.totalAmount,
+    }).catch((e) => console.warn('Booking email failed:', e?.message));
+    if (isNewUser) {
+        const resetToken = (0, auth_service_1.generatePasswordResetToken)(guestUser.id);
+        (0, notifications_service_1.sendPasswordSetupEmail)({
+            to: payload.guestEmail,
+            guestName: fullName,
+            resetToken,
+        }).catch((e) => console.warn('Password setup email failed:', e?.message));
+    }
+    return savedBooking;
+};
+exports.adminCreateBooking = adminCreateBooking;
 const findBookingsForUser = async (userId) => {
     const bookingRepo = repo();
     return bookingRepo.find({ where: { user: { id: userId } }, order: { createdAt: 'DESC' } });

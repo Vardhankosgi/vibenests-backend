@@ -2,6 +2,9 @@ import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { bookingCreateSchema, adminBookingSchema } from '../validation/schemas';
+import { AppDataSource } from '../data-source';
+import { In } from 'typeorm';
+import { AddOn } from '../entities/AddOn';
 import {
   createBooking,
   adminCreateBooking,
@@ -12,6 +15,7 @@ import {
   updateBookingStatus,
   cancelBooking,
 } from '../services/bookings.service';
+
 
 const router = express.Router();
 
@@ -34,18 +38,52 @@ router.get('/', async (req: any, res) => {
 router.get('/:id', async (req: any, res) => {
   try {
     const user = req.user;
-    if (user.role === 'admin') {
-      const booking = await findBookingById(Number(req.params.id));
-      if (!booking) return res.status(404).json({ message: 'Booking not found' });
-      return res.json(booking);
-    }
-    const booking = await findBookingByIdForUser(Number(req.params.id), user.id);
+
+    const booking =
+      user.role === 'admin'
+        ? await findBookingById(Number(req.params.id))
+        : await findBookingByIdForUser(Number(req.params.id), user.id);
+
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
+
+    // Build add-ons details: name + price + quantity (quantity derived from duplicate IDs in booking.addOns)
+    const addOns = Array.isArray((booking as any).addOns) ? (booking as any).addOns : [];
+    const addOnCounts = addOns.reduce((acc: Record<string, number>, rawId: string) => {
+      const key = String(rawId);
+      if (!key) return acc;
+      acc[key] = (acc[key] ?? 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const addonIds = Object.keys(addOnCounts).map((x) => Number(x)).filter(Boolean);
+    if (addonIds.length) {
+      const addonRepo = AppDataSource.getRepository(AddOn);
+      const addons = await addonRepo.findBy({ id: In(addonIds) });
+
+      const details = addons.map((a: AddOn) => ({
+        id: a.id,
+        name: a.name,
+        price: Number((a as any).price ?? 0),
+        quantity: addOnCounts[String(a.id)] ?? 0,
+      }));
+
+      // Attach without removing existing properties.
+      (booking as any).addOnsDetails = details;
+      // Keep legacy fields used elsewhere (addOnsNames might exist on some booking payloads)
+      if (!(booking as any).addOnsNames) {
+        (booking as any).addOnsNames = details.flatMap((d: any) => Array.from({ length: d.quantity }, () => d.name));
+      }
+    } else {
+      (booking as any).addOnsDetails = [];
+      (booking as any).addOnsNames = [];
+    }
+
     res.json(booking);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
   try {

@@ -13,9 +13,19 @@ const addons_1 = __importDefault(require("./routes/addons"));
 const payments_1 = __importDefault(require("./routes/payments"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const reports_1 = __importDefault(require("./routes/reports"));
+const offers_1 = __importDefault(require("./routes/offers"));
+const coupons_1 = __importDefault(require("./routes/coupons"));
+const refundPolicies_1 = __importDefault(require("./routes/refundPolicies"));
+const refunds_1 = __importDefault(require("./routes/refunds"));
+const taxCharges_1 = __importDefault(require("./routes/taxCharges"));
+const bookingRules_1 = __importDefault(require("./routes/bookingRules"));
+const liveCelebrationSettings_1 = __importDefault(require("./routes/liveCelebrationSettings"));
+const offerConfiguration_1 = __importDefault(require("./routes/offerConfiguration"));
+const auditLogs_1 = __importDefault(require("./routes/auditLogs"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
+// Existing routes
 app.use('/auth', auth_1.default);
 app.use('/bookings', bookings_1.default);
 app.use('/users', users_1.default);
@@ -24,5 +34,20 @@ app.use('/addons', addons_1.default);
 app.use('/payments', payments_1.default);
 app.use('/notifications', notifications_1.default);
 app.use('/reports', reports_1.default);
-app.get('/', (req, res) => res.json({ message: 'VibeNests Express API' }));
+// New modules
+app.use('/offers', offers_1.default);
+app.use('/coupons', coupons_1.default);
+app.use('/refund-policies', refundPolicies_1.default);
+app.use('/refunds', refunds_1.default);
+app.use('/tax-charges', taxCharges_1.default);
+app.use('/booking-rules', bookingRules_1.default);
+app.use('/live-celebration-settings', liveCelebrationSettings_1.default);
+app.use('/offer-configurations', offerConfiguration_1.default);
+app.use('/audit-logs', auditLogs_1.default);
+// Global error handler
+app.use((err, req, res, next) => {
+    console.error('[ERROR]', err);
+    res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
+});
+app.get('/', (_req, res) => res.json({ message: 'VibeNests API v2' }));
 exports.default = app;

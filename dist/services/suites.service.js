@@ -6,21 +6,60 @@ const Suite_1 = require("../entities/Suite");
 const SuiteAvailability_1 = require("../entities/SuiteAvailability");
 const suiteRepo = () => data_source_1.AppDataSource.getRepository(Suite_1.Suite);
 const availabilityRepo = () => data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
+function parseImages(images) {
+    if (Array.isArray(images))
+        return images;
+    try {
+        return JSON.parse(images);
+    }
+    catch {
+        return [];
+    }
+}
+function parseAmenities(val) {
+    if (Array.isArray(val))
+        return val.filter(Boolean);
+    if (!val || val === '')
+        return [];
+    return String(val).split(',').map((s) => s.trim()).filter(Boolean);
+}
 const createSuite = async (payload) => {
-    const suite = suiteRepo().create(payload);
-    return suiteRepo().save(suite);
+    const data = { ...payload, images: JSON.stringify(payload.images ?? []) };
+    const suite = suiteRepo().create(data);
+    const saved = await suiteRepo().save(suite);
+    saved.images = parseImages(saved.images);
+    saved.amenities = parseAmenities(saved.amenities);
+    return saved;
 };
 exports.createSuite = createSuite;
-const findSuites = async () => suiteRepo().find();
+const findSuites = async () => {
+    const suites = await suiteRepo().find();
+    return suites.map(s => ({
+        ...s,
+        images: parseImages(s.images),
+        amenities: parseAmenities(s.amenities),
+    }));
+};
 exports.findSuites = findSuites;
-const findSuiteById = async (id) => suiteRepo().findOne({ where: { id } });
+const findSuiteById = async (id) => {
+    const suite = await suiteRepo().findOne({ where: { id } });
+    if (suite) {
+        suite.images = parseImages(suite.images);
+        suite.amenities = parseAmenities(suite.amenities);
+    }
+    return suite;
+};
 exports.findSuiteById = findSuiteById;
 const updateSuite = async (id, payload) => {
     const suite = await suiteRepo().findOneBy({ id });
     if (!suite)
         throw new Error('Suite not found');
-    suiteRepo().merge(suite, payload);
-    return suiteRepo().save(suite);
+    const data = { ...payload, images: JSON.stringify(payload.images ?? parseImages(suite.images)) };
+    suiteRepo().merge(suite, data);
+    const saved = await suiteRepo().save(suite);
+    saved.images = parseImages(saved.images);
+    saved.amenities = parseAmenities(saved.amenities);
+    return saved;
 };
 exports.updateSuite = updateSuite;
 const deleteSuite = async (id) => {

@@ -37,4 +37,15 @@ router.post('/send/whatsapp', auth_1.authenticate, (0, auth_1.requireRole)('admi
         res.status(400).json({ message: err.message });
     }
 });
+router.get('/health', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
+    try {
+        const result = await (0, notifications_service_1.smtpHealthCheck)();
+        if (result.ok)
+            return res.json({ message: 'smtp_ok' });
+        return res.status(503).json({ message: 'smtp_unavailable', reason: result.reason ?? result.error });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 exports.default = router;

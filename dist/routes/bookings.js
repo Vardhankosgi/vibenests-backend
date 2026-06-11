@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const auth_1 = require("../middleware/auth");
+const validate_1 = require("../middleware/validate");
+const schemas_1 = require("../validation/schemas");
 const bookings_service_1 = require("../services/bookings.service");
 const router = express_1.default.Router();
 router.use(auth_1.authenticate);
@@ -40,16 +42,49 @@ router.get('/:id', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
-router.post('/', async (req, res) => {
+router.post('/', (0, validate_1.validateBody)(schemas_1.bookingCreateSchema), async (req, res) => {
     try {
         const payload = req.body;
         const booking = await (0, bookings_service_1.createBooking)({
             userId: req.user.id,
             suiteId: payload.suiteId,
+            suiteName: payload.suiteName,
             eventType: payload.eventType || 'General Event',
             addOns: payload.addOns,
             date: payload.date,
             timeSlot: payload.timeSlot,
+            endTimeSlot: payload.endTimeSlot,
+            persons: payload.persons,
+            basePrice: payload.basePrice,
+            addonsTotal: payload.addonsTotal,
+            savings: payload.savings,
+            serviceFee: payload.serviceFee,
+            taxes: payload.taxes,
+            totalAmount: payload.totalAmount,
+            paymentMode: payload.paymentMode,
+            advanceAmount: payload.advanceAmount,
+        });
+        res.status(201).json(booking);
+    }
+    catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+router.post('/admin', (0, auth_1.requireRole)('admin'), (0, validate_1.validateBody)(schemas_1.adminBookingSchema), async (req, res) => {
+    try {
+        const p = req.body;
+        const booking = await (0, bookings_service_1.adminCreateBooking)({
+            suiteId: p.suiteId,
+            eventType: p.eventType,
+            addOns: (p.addOns || []).map(String),
+            date: p.date,
+            timeSlot: p.timeSlot,
+            endTimeSlot: p.endTimeSlot,
+            guestFirstName: p.guestFirstName,
+            guestLastName: p.guestLastName,
+            guestEmail: p.guestEmail,
+            guestPhone: p.guestPhone,
+            totalAmount: p.totalAmount,
         });
         res.status(201).json(booking);
     }

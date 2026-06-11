@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetPasswordWithToken = exports.logout = exports.refreshAccessToken = exports.loginUser = exports.registerUser = void 0;
+exports.generatePasswordResetToken = exports.resetPasswordWithToken = exports.logout = exports.refreshAccessToken = exports.loginUser = exports.registerUser = void 0;
 const data_source_1 = require("../data-source");
 const User_1 = require("../entities/User");
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -34,9 +34,13 @@ const loginUser = async (email, password) => {
     const user = await repo.findOneBy({ email });
     if (!user)
         throw new Error('Invalid credentials');
+    if (!user.password)
+        throw new Error('This account uses OTP login. Please use mobile OTP.');
     const ok = await bcrypt_1.default.compare(password, user.password);
     if (!ok)
         throw new Error('Invalid credentials');
+    if (!user.isVerified)
+        throw new Error('Your account is not verified. Please verify your account.');
     const accessToken = generateAccessToken(user);
     const refreshEntity = await (0, token_service_1.createRefreshToken)(user.id);
     return { accessToken, refreshToken: refreshEntity.token, user };
@@ -61,12 +65,15 @@ const logout = async (refreshToken) => {
 exports.logout = logout;
 const resetPasswordWithToken = async (token, newPassword) => {
     try {
-        const payload = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'secret');
+        const resetSecret = process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'secret';
+        const payload = jsonwebtoken_1.default.verify(token, resetSecret);
         const repo = userRepo();
         const user = await repo.findOneBy({ id: payload.userId });
         if (!user)
             throw new Error('User not found');
         user.password = await bcrypt_1.default.hash(newPassword, 10);
+        user.isVerified = true;
+        user.isActive = true;
         return repo.save(user);
     }
     catch (err) {
@@ -74,3 +81,9 @@ const resetPasswordWithToken = async (token, newPassword) => {
     }
 };
 exports.resetPasswordWithToken = resetPasswordWithToken;
+const generatePasswordResetToken = (userId) => {
+    const resetSecret = process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'secret';
+    const expiresIn = (process.env.JWT_PASSWORD_RESET_EXPIRES_IN || '24h');
+    return jsonwebtoken_1.default.sign({ userId }, resetSecret, { expiresIn });
+};
+exports.generatePasswordResetToken = generatePasswordResetToken;
