@@ -16,6 +16,9 @@ export class User {
   phone?: string;
 
   @Column({ nullable: true })
+  dateOfBirth?: string;
+
+  @Column({ nullable: true })
   password?: string;
 
   @Column({ default: 'customer' })

@@ -117,6 +117,10 @@ __decorate([
     __metadata("design:type", String)
 ], Booking.prototype, "paymentStatus", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'jsonb', nullable: true, default: null }),
+    __metadata("design:type", Object)
+], Booking.prototype, "address", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
 ], Booking.prototype, "createdAt", void 0);

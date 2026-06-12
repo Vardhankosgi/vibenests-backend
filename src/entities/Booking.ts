@@ -6,6 +6,9 @@ export class Booking {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Column({ nullable: true, unique: true })
+  orderId?: string;
+
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'userId' })
   user!: User;
@@ -78,6 +81,9 @@ export class Booking {
 
   @Column({ default: 'pending' })
   paymentStatus!: 'pending' | 'success' | 'failed' | 'refunded';
+
+  @Column({ type: 'jsonb', nullable: true, default: null })
+  address!: Record<string, any> | null;
 
   @CreateDateColumn()
   createdAt!: Date;

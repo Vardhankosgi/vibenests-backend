@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyPayment = exports.verifyAndConfirmPayment = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
+exports.verifyPayment = exports.verifyAndConfirmPayment = exports.listMyPayments = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
 const data_source_1 = require("../data-source");
 const Payment_1 = require("../entities/Payment");
 const bookings_service_1 = require("./bookings.service");
@@ -61,8 +61,14 @@ const createPaymentIntent = async (bookingId, amount, method) => {
 exports.createPaymentIntent = createPaymentIntent;
 const findPaymentById = async (id) => repo().findOneBy({ id });
 exports.findPaymentById = findPaymentById;
-const listPayments = async () => repo().find({ order: { createdAt: 'DESC' } });
+const listPayments = async () => repo().find({ relations: ['booking', 'booking.user'], order: { createdAt: 'DESC' } });
 exports.listPayments = listPayments;
+const listMyPayments = async (userId) => repo().find({
+    where: { booking: { userId } },
+    relations: ['booking'],
+    order: { createdAt: 'DESC' },
+});
+exports.listMyPayments = listMyPayments;
 const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
     const payment = await repo().findOneBy({ id: paymentId });
     if (!payment)
@@ -93,6 +99,33 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
     const bookingForMode = await data_source_1.AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } });
     if (bookingForMode?.paymentMode === 'pay_now') {
         await (0, bookings_service_1.updateBookingStatus)(payment.bookingId, 'confirmed');
+    }
+    // Ensure booking guest details exist (frontend depends on these fields).
+    // If booking-level guest fields are empty, copy from linked user record.
+    try {
+        const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
+        const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
+        if (booking?.user) {
+            // Always backfill from booking.user (guest/customer) because some admin/payment flows
+            // may create bookings without copying guest fields.
+            // This avoids accidentally showing admin details.
+            const shouldBackfill = true;
+            if (shouldBackfill) {
+                const fullName = booking.user?.fullName || '';
+                const [firstName, ...rest] = String(fullName).split(' ');
+                const lastName = rest.join(' ');
+                await bookingRepo.save({
+                    id: booking.id,
+                    guestFirstName: firstName || booking.user?.fullName || undefined,
+                    guestLastName: lastName || undefined,
+                    guestEmail: booking.user?.email || undefined,
+                    guestPhone: booking.user?.phone || undefined,
+                });
+            }
+        }
+    }
+    catch (err) {
+        console.warn('Guest backfill failed', err);
     }
     // Send confirmation email
     try {

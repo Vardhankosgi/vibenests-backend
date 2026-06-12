@@ -45,6 +45,9 @@ export class Suite {
   @Column('int', { default: 150 })
   slotDurationMins!: number;
 
+  @Column('int', { default: 30 })
+  gapBetweenSlotsMins!: number;
+
   @Column({ default: 'available' })
   status!: 'available' | 'booked' | 'maintenance';
 

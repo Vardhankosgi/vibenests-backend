@@ -105,7 +105,24 @@ router.get('/me', auth_1.authenticate, async (req, res) => {
         const user = await repo().findOneBy({ id: req.user.id });
         if (!user)
             return res.status(404).json({ message: 'User not found' });
-        res.json({ id: user.id, fullName: user.fullName, email: user.email, role: user.role });
+        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+router.patch('/me', auth_1.authenticate, async (req, res) => {
+    try {
+        const user = await repo().findOneBy({ id: req.user.id });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        const { fullName, phone } = req.body;
+        if (fullName)
+            user.fullName = fullName;
+        if (phone !== undefined)
+            user.phone = phone;
+        await repo().save(user);
+        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role });
     }
     catch (err) {
         res.status(500).json({ message: err.message });

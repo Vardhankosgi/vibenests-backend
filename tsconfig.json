@@ -9,5 +9,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "skipLibCheck": true
-  }
+  },
+  "exclude": ["jest.config.ts", "jest.config.js", "dist"]
 }

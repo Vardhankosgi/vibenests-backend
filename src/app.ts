@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { translationMiddleware, languageResolverMiddleware } from './middleware/translation';
 import authRoutes from './routes/auth';
 import bookingsRoutes from './routes/bookings';
 import usersRoutes from './routes/users';
@@ -22,6 +23,8 @@ import celebrationPackagesRoutes from './routes/celebrationPackages';
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(languageResolverMiddleware);
+app.use(translationMiddleware);
 
 // Existing routes
 app.use('/auth', authRoutes);

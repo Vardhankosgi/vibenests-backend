@@ -1,5 +1,22 @@
+process.env.RAZORPAY_KEY_ID = 'test_key_id';
+process.env.RAZORPAY_KEY_SECRET = 'test_key_secret';
+
 import { createPaymentIntent, verifyPayment } from '../services/payments.service';
 import { AppDataSource } from '../data-source';
+
+jest.mock('../services/notifications.service', () => ({
+  sendEmail: jest.fn().mockResolvedValue({ ok: true })
+}));
+
+jest.mock('razorpay', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      orders: {
+        create: jest.fn().mockResolvedValue({ id: 'order_123' })
+      }
+    };
+  });
+});
 
 describe('payments.service', () => {
   const mockRepo: any = {};

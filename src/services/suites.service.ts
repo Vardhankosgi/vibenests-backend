@@ -19,7 +19,7 @@ function parseAmenities(val: any): string[] {
 export const createSuite = async (payload: Partial<Suite>) => {
   const data = { ...payload, images: JSON.stringify(payload.images ?? []) } as any;
   const suite = suiteRepo().create(data);
-  const saved = await suiteRepo().save(suite);
+  const saved = await suiteRepo().save(suite) as unknown as Suite;
   saved.images = parseImages(saved.images);
   (saved as any).amenities = parseAmenities(saved.amenities);
   return saved;
@@ -48,7 +48,7 @@ export const updateSuite = async (id: number, payload: Partial<Suite>) => {
   if (!suite) throw new Error('Suite not found');
   const data = { ...payload, images: JSON.stringify(payload.images ?? parseImages(suite.images)) } as any;
   suiteRepo().merge(suite, data);
-  const saved = await suiteRepo().save(suite);
+  const saved = await suiteRepo().save(suite) as unknown as Suite;
   saved.images = parseImages(saved.images);
   (saved as any).amenities = parseAmenities(saved.amenities);
   return saved;

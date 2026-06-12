@@ -38,6 +38,12 @@ export const deleteCoupon = async (id: number, userId: number, ip?: string) => {
   await auditRepo.log({ entityType: 'Coupon', entityId: id, action: 'DELETE', performedBy: userId, ipAddress: ip });
 };
 
+export const getActiveCoupons = async () => {
+  const result = await couponRepo.search({ status: 'active', limit: 100 });
+  const now = new Date();
+  return result.data.filter((c) => !c.expiresAt || c.expiresAt > now);
+};
+
 export const validateCoupon = async (code: string, bookingAmount: number, userId: number) => {
   const coupon = await couponRepo.findByCode(code);
   if (!coupon) throw new Error('Invalid coupon code');

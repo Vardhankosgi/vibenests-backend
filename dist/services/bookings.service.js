@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.adminCreateBooking = exports.createBooking = void 0;
+exports.getMeetingLink = exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.adminCreateBooking = exports.createBooking = void 0;
 const data_source_1 = require("../data-source");
 const Booking_1 = require("../entities/Booking");
 const User_1 = require("../entities/User");
 const Suite_1 = require("../entities/Suite");
 const AddOn_1 = require("../entities/AddOn");
 const typeorm_1 = require("typeorm");
+const crypto_1 = require("crypto");
 const auth_service_1 = require("./auth.service");
 const notifications_service_1 = require("./notifications.service");
 const repo = () => data_source_1.AppDataSource.getRepository(Booking_1.Booking);
@@ -155,3 +156,20 @@ const cancelBooking = async (id, userId) => {
 exports.cancelBooking = cancelBooking;
 const findAllBookings = async () => repo().find({ order: { createdAt: 'DESC' } });
 exports.findAllBookings = findAllBookings;
+const getMeetingLink = async (bookingId, requestingUserId, requestingRole) => {
+    const bookingRepo = repo();
+    const booking = await bookingRepo.findOneBy({ id: bookingId });
+    if (!booking)
+        throw new Error('Booking not found');
+    if (requestingRole !== 'admin' && booking.userId !== requestingUserId)
+        throw new Error('Forbidden');
+    if (booking.status !== 'confirmed')
+        throw new Error('Meeting link is only available for confirmed bookings');
+    if (booking.address?.meeting_link)
+        return booking.address.meeting_link;
+    const meetingLink = `https://meet.jit.si/VibeNests-${(0, crypto_1.randomUUID)()}`;
+    booking.address = { ...(booking.address ?? {}), meeting_link: meetingLink, meeting_provider: 'jitsi' };
+    await bookingRepo.save(booking);
+    return meetingLink;
+};
+exports.getMeetingLink = getMeetingLink;

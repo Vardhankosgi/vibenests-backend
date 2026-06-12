@@ -19,6 +19,7 @@ import { AuditLog } from './entities/AuditLog';
 import { OfferConfiguration } from './entities/OfferConfiguration';
 import { OtpCode } from './entities/OtpCode';
 import { CelebrationPackage } from './entities/CelebrationPackage';
+import { Translation } from './entities/Translation';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -32,7 +33,7 @@ export const AppDataSource = new DataSource({
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
     Offer, Coupon, RefundPolicy, AddOnRefundRule, LiveCelebrationSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
-    CelebrationPackage,
+    CelebrationPackage, Translation,
   ],
   migrations: [],
 });

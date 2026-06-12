@@ -75,6 +75,15 @@ router.post('/verify', auth_1.authenticate, async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 });
+router.get('/me', auth_1.authenticate, async (req, res) => {
+    try {
+        const payments = await (0, payments_service_1.listMyPayments)(req.user.id);
+        res.json(payments);
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 router.get('/all', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (_req, res) => {
     try {
         const payments = await (0, payments_service_1.listPayments)();

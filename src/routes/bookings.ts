@@ -14,6 +14,7 @@ import {
   findBookingById,
   updateBookingStatus,
   cancelBooking,
+  getMeetingLink,
 } from '../services/bookings.service';
 
 
@@ -151,6 +152,16 @@ router.patch('/:id/cancel', async (req: any, res) => {
     res.json(booking);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/:id/meeting-link', async (req: any, res) => {
+  try {
+    const link = await getMeetingLink(Number(req.params.id), req.user.id, req.user.role);
+    res.json({ meeting_link: link });
+  } catch (err: any) {
+    const status = err.message === 'Forbidden' ? 403 : err.message === 'Booking not found' ? 404 : 400;
+    res.status(status).json({ message: err.message });
   }
 });
 
