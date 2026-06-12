@@ -91,10 +91,46 @@ const sendSms = async (phone, message) => {
     return { ok: true };
 };
 exports.sendSms = sendSms;
+function normalizePhoneToDigits(phone) {
+    return String(phone || '').replace(/\D/g, '');
+}
 const sendWhatsApp = async (phone, message) => {
-    // WhatsApp provider removed; keep a console fallback.
-    console.log(`WHATSAPP (stub) -> To: ${phone} | Message: ${message}`);
-    return { ok: true };
+    const digits = normalizePhoneToDigits(phone);
+    const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v25.0';
+    // No WhatsApp config => stub fallback
+    if (!accessToken || !phoneNumberId) {
+        console.log(`WHATSAPP (stub) -> To: ${phone} | Message: ${message}`);
+        return { ok: true, stub: true };
+    }
+    try {
+        const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
+        const payload = {
+            messaging_product: 'whatsapp',
+            to: digits,
+            type: 'text',
+            text: { body: message },
+        };
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            console.warn('WhatsApp send failed', resp.status, data);
+            return { ok: false, status: resp.status, error: data };
+        }
+        return { ok: true, data };
+    }
+    catch (err) {
+        console.warn('WhatsApp send error', err);
+        return { ok: false, error: err?.message ?? err };
+    }
 };
 exports.sendWhatsApp = sendWhatsApp;
 const smtpHealthCheck = async () => {

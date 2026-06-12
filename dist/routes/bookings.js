@@ -7,6 +7,9 @@ const express_1 = __importDefault(require("express"));
 const auth_1 = require("../middleware/auth");
 const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
+const data_source_1 = require("../data-source");
+const typeorm_1 = require("typeorm");
+const AddOn_1 = require("../entities/AddOn");
 const bookings_service_1 = require("../services/bookings.service");
 const router = express_1.default.Router();
 router.use(auth_1.authenticate);
@@ -27,15 +30,41 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const user = req.user;
-        if (user.role === 'admin') {
-            const booking = await (0, bookings_service_1.findBookingById)(Number(req.params.id));
-            if (!booking)
-                return res.status(404).json({ message: 'Booking not found' });
-            return res.json(booking);
-        }
-        const booking = await (0, bookings_service_1.findBookingByIdForUser)(Number(req.params.id), user.id);
+        const booking = user.role === 'admin'
+            ? await (0, bookings_service_1.findBookingById)(Number(req.params.id))
+            : await (0, bookings_service_1.findBookingByIdForUser)(Number(req.params.id), user.id);
         if (!booking)
             return res.status(404).json({ message: 'Booking not found' });
+        // Build add-ons details: name + price + quantity (quantity derived from duplicate IDs in booking.addOns)
+        const addOns = Array.isArray(booking.addOns) ? booking.addOns : [];
+        const addOnCounts = addOns.reduce((acc, rawId) => {
+            const key = String(rawId);
+            if (!key)
+                return acc;
+            acc[key] = (acc[key] ?? 0) + 1;
+            return acc;
+        }, {});
+        const addonIds = Object.keys(addOnCounts).map((x) => Number(x)).filter(Boolean);
+        if (addonIds.length) {
+            const addonRepo = data_source_1.AppDataSource.getRepository(AddOn_1.AddOn);
+            const addons = await addonRepo.findBy({ id: (0, typeorm_1.In)(addonIds) });
+            const details = addons.map((a) => ({
+                id: a.id,
+                name: a.name,
+                price: Number(a.price ?? 0),
+                quantity: addOnCounts[String(a.id)] ?? 0,
+            }));
+            // Attach without removing existing properties.
+            booking.addOnsDetails = details;
+            // Keep legacy fields used elsewhere (addOnsNames might exist on some booking payloads)
+            if (!booking.addOnsNames) {
+                booking.addOnsNames = details.flatMap((d) => Array.from({ length: d.quantity }, () => d.name));
+            }
+        }
+        else {
+            booking.addOnsDetails = [];
+            booking.addOnsNames = [];
+        }
         res.json(booking);
     }
     catch (err) {

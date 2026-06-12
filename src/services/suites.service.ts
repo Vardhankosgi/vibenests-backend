@@ -7,38 +7,50 @@ const availabilityRepo = () => AppDataSource.getRepository(SuiteAvailability);
 
 function parseImages(images: any): string[] {
   if (Array.isArray(images)) return images;
-  try { return JSON.parse(images); } catch { return []; }
+  try {
+    return JSON.parse(images);
+  } catch {
+    return [];
+  }
 }
 
 function parseAmenities(val: any): string[] {
   if (Array.isArray(val)) return val.filter(Boolean);
   if (!val || val === '') return [];
-  return String(val).split(',').map((s) => s.trim()).filter(Boolean);
+  return String(val)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export const createSuite = async (payload: Partial<Suite>) => {
-  const data = { ...payload, images: JSON.stringify(payload.images ?? []) } as any;
+  const data = { ...(payload as any), images: JSON.stringify((payload as any).images ?? []) } as any;
   const suite = suiteRepo().create(data);
   const saved = await suiteRepo().save(suite);
-  saved.images = parseImages(saved.images);
-  (saved as any).amenities = parseAmenities(saved.amenities);
+
+  (saved as any).images = parseImages((saved as any).images);
+  (saved as any).amenities = parseAmenities((saved as any).amenities);
   return saved;
 };
 
 export const findSuites = async () => {
   const suites = await suiteRepo().find();
-  return suites.map(s => ({
-    ...s,
-    images: parseImages(s.images),
-    amenities: parseAmenities(s.amenities),
-  }));
+  return suites.map((s) => {
+    const anySuite = s as any;
+    return {
+      ...s,
+      images: parseImages(anySuite.images),
+      amenities: parseAmenities(anySuite.amenities),
+    };
+  });
 };
 
 export const findSuiteById = async (id: number) => {
   const suite = await suiteRepo().findOne({ where: { id } });
   if (suite) {
-    suite.images = parseImages(suite.images);
-    (suite as any).amenities = parseAmenities(suite.amenities);
+    const anySuite = suite as any;
+    anySuite.images = parseImages(anySuite.images);
+    anySuite.amenities = parseAmenities(anySuite.amenities);
   }
   return suite;
 };
@@ -46,11 +58,19 @@ export const findSuiteById = async (id: number) => {
 export const updateSuite = async (id: number, payload: Partial<Suite>) => {
   const suite = await suiteRepo().findOneBy({ id });
   if (!suite) throw new Error('Suite not found');
-  const data = { ...payload, images: JSON.stringify(payload.images ?? parseImages(suite.images)) } as any;
+
+  const suiteAny = suite as any;
+  const data = {
+    ...(payload as any),
+    images: JSON.stringify((payload as any).images ?? parseImages(suiteAny.images)),
+  } as any;
+
   suiteRepo().merge(suite, data);
   const saved = await suiteRepo().save(suite);
-  saved.images = parseImages(saved.images);
-  (saved as any).amenities = parseAmenities(saved.amenities);
+
+  const anySaved = saved as any;
+  anySaved.images = parseImages(anySaved.images);
+  anySaved.amenities = parseAmenities(anySaved.amenities);
   return saved;
 };
 
@@ -60,8 +80,20 @@ export const deleteSuite = async (id: number) => {
   return suiteRepo().remove(suite);
 };
 
-export const addAvailabilitySlot = async (suiteId: number, date: string, timeSlot: string, note?: string) => {
-  const entry = availabilityRepo().create({ suite: { id: suiteId } as any, suiteId, date, timeSlot, status: 'blocked', note });
+export const addAvailabilitySlot = async (
+  suiteId: number,
+  date: string,
+  timeSlot: string,
+  note?: string
+) => {
+  const entry = availabilityRepo().create({
+    suite: { id: suiteId } as any,
+    suiteId,
+    date,
+    timeSlot,
+    status: 'blocked',
+    note,
+  } as any);
   return availabilityRepo().save(entry);
 };
 
@@ -71,17 +103,21 @@ export const removeAvailabilitySlot = async (id: number) => {
   return availabilityRepo().remove(entry);
 };
 
-export const getAvailabilityForSuite = async (suiteId: number) => availabilityRepo().find({ where: { suiteId } });
+export const getAvailabilityForSuite = async (suiteId: number) =>
+  availabilityRepo().find({ where: { suiteId } as any });
 
 export const findAvailableSuites = async (date?: string, timeSlot?: string) => {
   const qb = suiteRepo().createQueryBuilder('suite');
   if (date && timeSlot) {
-    qb.leftJoinAndSelect('suite.availability', 'availability')
-      .andWhere('(availability.date != :date OR availability.timeSlot != :timeSlot OR availability.status = :status)', {
+    qb.leftJoinAndSelect('suite.availability', 'availability').andWhere(
+      '(availability.date != :date OR availability.timeSlot != :timeSlot OR availability.status = :status)',
+      {
         date,
         timeSlot,
         status: 'available',
-      });
+      }
+    );
   }
   return qb.getMany();
 };
+

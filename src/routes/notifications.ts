@@ -27,12 +27,13 @@ router.post('/send/sms', authenticate, requireRole('admin'), async (req: any, re
 router.post('/send/whatsapp', authenticate, requireRole('admin'), async (req: any, res) => {
   try {
     const { phone, message } = req.body;
-    await sendWhatsApp(phone, message);
-    res.json({ message: 'WhatsApp queued (stub)' });
+    const result = await sendWhatsApp(phone, message);
+    res.json({ message: 'WhatsApp sent', result });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
 });
+
 
 router.get('/health', authenticate, requireRole('admin'), async (req: any, res) => {
   try {

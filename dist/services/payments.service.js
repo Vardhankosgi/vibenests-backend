@@ -94,6 +94,33 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
     if (bookingForMode?.paymentMode === 'pay_now') {
         await (0, bookings_service_1.updateBookingStatus)(payment.bookingId, 'confirmed');
     }
+    // Ensure booking guest details exist (frontend depends on these fields).
+    // If booking-level guest fields are empty, copy from linked user record.
+    try {
+        const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
+        const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
+        if (booking?.user) {
+            // Always backfill from booking.user (guest/customer) because some admin/payment flows
+            // may create bookings without copying guest fields.
+            // This avoids accidentally showing admin details.
+            const shouldBackfill = true;
+            if (shouldBackfill) {
+                const fullName = booking.user?.fullName || '';
+                const [firstName, ...rest] = String(fullName).split(' ');
+                const lastName = rest.join(' ');
+                await bookingRepo.save({
+                    id: booking.id,
+                    guestFirstName: firstName || booking.user?.fullName || undefined,
+                    guestLastName: lastName || undefined,
+                    guestEmail: booking.user?.email || undefined,
+                    guestPhone: booking.user?.phone || undefined,
+                });
+            }
+        }
+    }
+    catch (err) {
+        console.warn('Guest backfill failed', err);
+    }
     // Send confirmation email
     try {
         const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');

@@ -6,8 +6,11 @@ import { AddOn } from '../entities/AddOn';
 import { In } from 'typeorm';
 import { generatePasswordResetToken } from './auth.service';
 import { sendBookingConfirmationEmail, sendPasswordSetupEmail } from './notifications.service';
+import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
+
 
 const repo = () => AppDataSource.getRepository(Booking);
+
 
 export const createBooking = async (payload: {
   userId: number;
@@ -53,7 +56,9 @@ export const createBooking = async (payload: {
     status: 'pending',
     paymentStatus: 'pending',
   } as any);
-  return bookingRepo.save(booking);
+  const saved = await bookingRepo.save(booking);
+  return saved;
+
 };
 
 export const adminCreateBooking = async (payload: {
@@ -111,7 +116,9 @@ export const adminCreateBooking = async (payload: {
     status: 'confirmed',
     paymentStatus: 'success',
   } as any);
-  const savedBooking = await bookingRepo.save(booking);
+  const savedBooking = await bookingRepo.save(booking as any);
+
+
 
   // ── Resolve suite name & addon names for email ────────────────────────────
   const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
@@ -129,6 +136,7 @@ export const adminCreateBooking = async (payload: {
   // ── Send emails (non-blocking) ────────────────────────────────────────────
   sendBookingConfirmationEmail({
     to: payload.guestEmail,
+
     guestName: fullName,
     bookingId: savedBooking.id,
     suiteName,
@@ -147,10 +155,23 @@ export const adminCreateBooking = async (payload: {
       guestName: fullName,
       resetToken,
     }).catch((e) => console.warn('Password setup email failed:', e?.message));
+
+    // WhatsApp: account created (best-effort)
+    sendAccountCreatedWhatsApp({ phone: payload.guestPhone, fullName } as any).catch(() => {});
+
   }
+
+  // WhatsApp: booking confirmed (best-effort)
+  sendBookingConfirmedWhatsApp({
+    id: savedBooking.id,
+    guestPhone: payload.guestPhone,
+    guestFirstName: payload.guestFirstName,
+    guestLastName: payload.guestLastName,
+  }).catch(() => {});
 
   return savedBooking;
 };
+
 
 export const findBookingsForUser = async (userId: number) => {
   const bookingRepo = repo();

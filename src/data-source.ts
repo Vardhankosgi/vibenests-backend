@@ -18,6 +18,9 @@ import { RefundCalculation } from './entities/RefundCalculation';
 import { AuditLog } from './entities/AuditLog';
 import { OfferConfiguration } from './entities/OfferConfiguration';
 import { OtpCode } from './entities/OtpCode';
+import { WhatsAppMessage } from './entities/WhatsAppMessage';
+import { WhatsAppEvent } from './entities/WhatsAppEvent';
+
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -31,6 +34,7 @@ export const AppDataSource = new DataSource({
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
     Offer, Coupon, RefundPolicy, AddOnRefundRule, LiveCelebrationSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
+    OtpCode, WhatsAppMessage, WhatsAppEvent,
   ],
   migrations: [],
 });
