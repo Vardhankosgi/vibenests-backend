@@ -17,10 +17,14 @@ import bookingRulesRoutes from './routes/bookingRules';
 import liveCelebrationRoutes from './routes/liveCelebrationSettings';
 import offerConfigRoutes from './routes/offerConfiguration';
 import auditLogsRoutes from './routes/auditLogs';
+<<<<<<< HEAD
 import webhookRoutes from './routes/webhook';
 import llmRoutes from './routes/llm';
 
 
+=======
+import celebrationPackagesRoutes from './routes/celebrationPackages';
+>>>>>>> cff0b5f3f5f4dd10c8cd01b103a34dd41e7bd898
 
 const app = express();
 app.use(cors());
@@ -48,6 +52,7 @@ app.use('/offer-configurations', offerConfigRoutes);
 app.use('/audit-logs', auditLogsRoutes);
 app.use('/', webhookRoutes);
 app.use('/llm', llmRoutes);
+app.use('/celebration-packages', celebrationPackagesRoutes);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

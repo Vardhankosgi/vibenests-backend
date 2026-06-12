@@ -31,6 +31,20 @@ export const bookingCreateSchema = z.object({
   advanceAmount: z.number().min(0).optional(),
 });
 
+export const celebrationPackageSchema = z.object({
+  name: z.string().min(2),
+  occasion: z.string().min(2),
+  price: z.number().positive(),
+  priceRangeMin: z.number().min(0).optional(),
+  priceRangeMax: z.number().min(0).optional(),
+  capacity: z.number().int().positive(),
+  description: z.string().min(5),
+  image: z.string().optional(),
+  badge: z.enum(['Most Popular', 'Best for Couples', 'Great for Parties', 'Perfect Surprise']).optional(),
+  amenities: z.array(z.string()).optional(),
+  status: z.enum(['Active', 'Inactive']).optional(),
+});
+
 export const adminBookingSchema = z.object({
   suiteId: z.number().int().positive(),
   eventType: z.string().min(2),

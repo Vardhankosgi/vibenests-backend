@@ -21,6 +21,7 @@ import { OtpCode } from './entities/OtpCode';
 import { WhatsAppMessage } from './entities/WhatsAppMessage';
 import { WhatsAppEvent } from './entities/WhatsAppEvent';
 
+import { CelebrationPackage } from './entities/CelebrationPackage';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -35,6 +36,7 @@ export const AppDataSource = new DataSource({
     Offer, Coupon, RefundPolicy, AddOnRefundRule, LiveCelebrationSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
     OtpCode, WhatsAppMessage, WhatsAppEvent,
+    CelebrationPackage,
   ],
   migrations: [],
 });

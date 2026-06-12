@@ -36,6 +36,15 @@ export class Suite {
   @Column('text', { default: '[]' })
   images!: string[];
 
+  @Column({ default: '09:00' })
+  slotStartTime!: string;
+
+  @Column({ default: '21:00' })
+  slotEndTime!: string;
+
+  @Column('int', { default: 150 })
+  slotDurationMins!: number;
+
   @Column({ default: 'available' })
   status!: 'available' | 'booked' | 'maintenance';
 

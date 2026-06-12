@@ -25,10 +25,10 @@ export const authenticate = (req: Request & { user?: any }, res: Response, next:
   }
 };
 
-export const requireRole = (role: string) => {
+export const requireRole = (...roles: string[]) => {
   return (req: Request & { user?: any }, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ message: 'Unauthenticated' });
-    if (req.user.role !== role) return res.status(403).json({ message: 'Forbidden' });
+    if (!roles.includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
     next();
   };
 };
