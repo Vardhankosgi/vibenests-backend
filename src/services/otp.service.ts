@@ -1,7 +1,8 @@
 import { AppDataSource } from '../data-source';
 import { OtpCode } from '../entities/OtpCode';
 import { User } from '../entities/User';
-import { sendEmail, sendSms } from './notifications.service';
+import { sendEmail, sendSms, sendWhatsApp } from './notifications.service';
+
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { createRefreshToken } from './token.service';
 import dotenv from 'dotenv';
@@ -44,13 +45,23 @@ export const sendOtp = async (phone: string) => {
     throw new Error('Your account is not active. Please verify your account.');
   }
 
-  // Try to send via email if user already exists with an email
+  // Prefer channel based on user record, keep backward-compatible fallback.
   if (existingUser?.email && !existingUser.email.endsWith('@phone.local')) {
     await sendEmail(existingUser.email, 'VibeNests — Your OTP', message);
   } else {
-    // Fallback: SMS stub (logs to console)
-    await sendSms(normalised, message);
+    // If WhatsApp is configured, use it as an OTP channel.
+    const waAccessToken = process.env.WHATSAPP_ACCESS_TOKEN;
+    const waPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const whatsappConfigured = Boolean(waAccessToken && waPhoneNumberId);
+
+    if (whatsappConfigured) {
+      await sendWhatsApp(normalised, message);
+    } else {
+      // Fallback: SMS stub (logs to console)
+      await sendSms(normalised, message);
+    }
   }
+
 
   // Always return OTP in dev mode for easy testing
   const isDev = process.env.NODE_ENV !== 'production';

@@ -587,3 +587,5 @@ Error: listen EADDRINUSE: address already in use :::4000
     at c:\Users\veera\Desktop\vibenest\backend-express\src\index.ts:28:9
     at processTicksAndRejections (node:internal/process/task_queues:95:5)
 [ERROR] 12:55:23 Error: listen EADDRINUSE: address already in use :::4000
+
+c:\Users\veera\Desktop\vibenest\backend-express>

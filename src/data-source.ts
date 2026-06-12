@@ -18,6 +18,9 @@ import { RefundCalculation } from './entities/RefundCalculation';
 import { AuditLog } from './entities/AuditLog';
 import { OfferConfiguration } from './entities/OfferConfiguration';
 import { OtpCode } from './entities/OtpCode';
+import { WhatsAppMessage } from './entities/WhatsAppMessage';
+import { WhatsAppEvent } from './entities/WhatsAppEvent';
+
 import { CelebrationPackage } from './entities/CelebrationPackage';
 import { Translation } from './entities/Translation';
 import dotenv from 'dotenv';
@@ -34,6 +37,7 @@ export const AppDataSource = new DataSource({
     Offer, Coupon, RefundPolicy, AddOnRefundRule, LiveCelebrationSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
     CelebrationPackage, Translation,
+    OtpCode, WhatsAppMessage, WhatsAppEvent,
   ],
   migrations: [],
 });

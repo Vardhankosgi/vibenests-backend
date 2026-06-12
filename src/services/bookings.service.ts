@@ -7,6 +7,8 @@ import { In } from 'typeorm';
 import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
 import { sendBookingConfirmationEmail, sendPasswordSetupEmail } from './notifications.service';
+import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
+
 
 const repo = () => AppDataSource.getRepository(Booking);
 
@@ -144,6 +146,7 @@ export const adminCreateBooking = async (payload: {
   // ── Send emails (non-blocking) ────────────────────────────────────────────
   sendBookingConfirmationEmail({
     to: payload.guestEmail,
+
     guestName: fullName,
     bookingId: savedBooking.id,
     suiteName,
@@ -162,11 +165,26 @@ export const adminCreateBooking = async (payload: {
       guestName: fullName,
       resetToken,
     }).catch((e) => console.warn('Password setup email failed:', e?.message));
+
+    // WhatsApp: account created (best-effort)
+    sendAccountCreatedWhatsApp({ phone: payload.guestPhone, fullName } as any).catch(() => { });
+
   }
 
   const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
   return finalBooking || savedBooking;
+  // WhatsApp: booking confirmed (best-effort)
+  sendBookingConfirmedWhatsApp({
+    id: savedBooking.id,
+    guestPhone: payload.guestPhone,
+    guestFirstName: payload.guestFirstName,
+    guestLastName: payload.guestLastName,
+  }).catch(() => { });
+
+  // return savedBooking;
+  return finalBooking || savedBooking;
 };
+
 
 export const findBookingsForUser = async (userId: number) => {
   const bookingRepo = repo();

@@ -24,11 +24,16 @@ const liveCelebrationSettings_1 = __importDefault(require("./routes/liveCelebrat
 const offerConfiguration_1 = __importDefault(require("./routes/offerConfiguration"));
 const auditLogs_1 = __importDefault(require("./routes/auditLogs"));
 const celebrationPackages_1 = __importDefault(require("./routes/celebrationPackages"));
-const app = (0, express_1.default)();
+// const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use(translation_1.languageResolverMiddleware);
 app.use(translation_1.translationMiddleware);
+const webhook_1 = __importDefault(require("./routes/webhook"));
+const llm_1 = __importDefault(require("./routes/llm"));
+const app = (0, express_1.default)();
+app.use((0, cors_1.default)());
+app.use(express_1.default.json({ limit: '1mb' }));
 // Existing routes
 app.use('/auth', auth_1.default);
 app.use('/bookings', bookings_1.default);
@@ -49,6 +54,8 @@ app.use('/live-celebration-settings', liveCelebrationSettings_1.default);
 app.use('/offer-configurations', offerConfiguration_1.default);
 app.use('/audit-logs', auditLogs_1.default);
 app.use('/celebration-packages', celebrationPackages_1.default);
+app.use('/', webhook_1.default);
+app.use('/llm', llm_1.default);
 // Global error handler
 app.use((err, req, res, next) => {
     console.error('[ERROR]', err);

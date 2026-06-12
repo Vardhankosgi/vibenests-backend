@@ -10,6 +10,7 @@ const typeorm_1 = require("typeorm");
 const crypto_1 = require("crypto");
 const auth_service_1 = require("./auth.service");
 const notifications_service_1 = require("./notifications.service");
+const whatsapp_notifications_service_1 = require("./whatsapp-notifications.service");
 const repo = () => data_source_1.AppDataSource.getRepository(Booking_1.Booking);
 const createBooking = async (payload) => {
     const bookingRepo = repo();
@@ -37,7 +38,8 @@ const createBooking = async (payload) => {
         status: 'pending',
         paymentStatus: 'pending',
     });
-    return bookingRepo.save(booking);
+    const saved = await bookingRepo.save(booking);
+    return saved;
 };
 exports.createBooking = createBooking;
 const adminCreateBooking = async (payload) => {
@@ -113,7 +115,16 @@ const adminCreateBooking = async (payload) => {
             guestName: fullName,
             resetToken,
         }).catch((e) => console.warn('Password setup email failed:', e?.message));
+        // WhatsApp: account created (best-effort)
+        (0, whatsapp_notifications_service_1.sendAccountCreatedWhatsApp)({ phone: payload.guestPhone, fullName }).catch(() => { });
     }
+    // WhatsApp: booking confirmed (best-effort)
+    (0, whatsapp_notifications_service_1.sendBookingConfirmedWhatsApp)({
+        id: savedBooking.id,
+        guestPhone: payload.guestPhone,
+        guestFirstName: payload.guestFirstName,
+        guestLastName: payload.guestLastName,
+    }).catch(() => { });
     return savedBooking;
 };
 exports.adminCreateBooking = adminCreateBooking;

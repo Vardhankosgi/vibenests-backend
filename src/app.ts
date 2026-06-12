@@ -18,6 +18,10 @@ import bookingRulesRoutes from './routes/bookingRules';
 import liveCelebrationRoutes from './routes/liveCelebrationSettings';
 import offerConfigRoutes from './routes/offerConfiguration';
 import auditLogsRoutes from './routes/auditLogs';
+import webhookRoutes from './routes/webhook';
+import llmRoutes from './routes/llm';
+
+
 import celebrationPackagesRoutes from './routes/celebrationPackages';
 
 const app = express();
@@ -25,6 +29,7 @@ app.use(cors());
 app.use(express.json());
 app.use(languageResolverMiddleware);
 app.use(translationMiddleware);
+app.use(express.json({ limit: '1mb' }));
 
 // Existing routes
 app.use('/auth', authRoutes);
@@ -46,10 +51,13 @@ app.use('/booking-rules', bookingRulesRoutes);
 app.use('/live-celebration-settings', liveCelebrationRoutes);
 app.use('/offer-configurations', offerConfigRoutes);
 app.use('/audit-logs', auditLogsRoutes);
+app.use('/', webhookRoutes);
+app.use('/llm', llmRoutes);
 app.use('/celebration-packages', celebrationPackagesRoutes);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+
   console.error('[ERROR]', err);
   res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
 });

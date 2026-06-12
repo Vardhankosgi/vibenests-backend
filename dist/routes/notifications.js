@@ -30,8 +30,8 @@ router.post('/send/sms', auth_1.authenticate, (0, auth_1.requireRole)('admin'), 
 router.post('/send/whatsapp', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
     try {
         const { phone, message } = req.body;
-        await (0, notifications_service_1.sendWhatsApp)(phone, message);
-        res.json({ message: 'WhatsApp queued (stub)' });
+        const result = await (0, notifications_service_1.sendWhatsApp)(phone, message);
+        res.json({ message: 'WhatsApp sent', result });
     }
     catch (err) {
         res.status(400).json({ message: err.message });
