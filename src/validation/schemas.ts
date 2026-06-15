@@ -13,7 +13,7 @@ export const loginSchema = z.object({
 });
 
 export const bookingCreateSchema = z.object({
-  suiteId: z.number().int().positive(),
+  suiteId: z.number().int().nonnegative(),
   suiteName: z.string().optional(),
   eventType: z.string().min(2).optional(),
   addOns: z.array(z.string()).optional(),
@@ -46,7 +46,7 @@ export const celebrationPackageSchema = z.object({
 });
 
 export const adminBookingSchema = z.object({
-  suiteId: z.number().int().positive(),
+  suiteId: z.number().int().nonnegative(),
   eventType: z.string().min(2),
   addOns: z.array(z.number()).optional(),
   date: z.string().min(8),

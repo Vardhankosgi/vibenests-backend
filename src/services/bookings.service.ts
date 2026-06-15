@@ -172,7 +172,7 @@ export const adminCreateBooking = async (payload: {
   }
 
   const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
-  return finalBooking || savedBooking;
+  // return finalBooking || savedBooking;
   // WhatsApp: booking confirmed (best-effort)
   sendBookingConfirmedWhatsApp({
     id: savedBooking.id,
