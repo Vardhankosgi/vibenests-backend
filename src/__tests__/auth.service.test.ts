@@ -15,7 +15,7 @@ describe('auth.service', () => {
 
   test('registerUser creates user when not exists', async () => {
     mockRepo.findOneBy.mockResolvedValue(null);
-    const user = await registerUser({ fullName: 'Test', email: 't@example.com', password: 'secret' });
+    const user = await registerUser({ fullName: 'Test', email: 't@example.com', password: 'secret', dateOfBirth: '1990-01-01' });
     expect(user).toBeDefined();
     expect(mockRepo.save).toHaveBeenCalled();
   });

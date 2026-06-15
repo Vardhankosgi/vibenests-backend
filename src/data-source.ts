@@ -21,8 +21,10 @@ import { OtpCode } from './entities/OtpCode';
 import { WhatsAppMessage } from './entities/WhatsAppMessage';
 import { WhatsAppEvent } from './entities/WhatsAppEvent';
 
-import { CelebrationPackage } from './entities/CelebrationPackage';
+import { MembershipPlan } from './entities/MembershipPlan';
+import { UserMembership } from './entities/UserMembership';
 import { Translation } from './entities/Translation';
+import { Review } from './entities/Review';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -36,7 +38,7 @@ export const AppDataSource = new DataSource({
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
     Offer, Coupon, RefundPolicy, AddOnRefundRule, LiveCelebrationSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
-    CelebrationPackage, Translation,
+    MembershipPlan, UserMembership, Translation, Review,
     OtpCode, WhatsAppMessage, WhatsAppEvent,
   ],
   migrations: [],

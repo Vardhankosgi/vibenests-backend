@@ -13,7 +13,7 @@ const router = express_1.default.Router();
 router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema), async (req, res) => {
     try {
         const user = await (0, auth_service_1.registerUser)(req.body);
-        res.status(201).json({ id: user.id, email: user.email, role: user.role, fullName: user.fullName });
+        res.status(201).json({ id: user.id, email: user.email, role: user.role, fullName: user.fullName, dateOfBirth: user.dateOfBirth ?? null });
     }
     catch (err) {
         res.status(400).json({ message: err.message });
@@ -26,7 +26,7 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
         res.json({
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
-            user: { id: data.user.id, email: data.user.email, role: data.user.role, fullName: data.user.fullName },
+            user: { id: data.user.id, email: data.user.email, role: data.user.role, fullName: data.user.fullName, dateOfBirth: data.user.dateOfBirth ?? null },
         });
     }
     catch (err) {

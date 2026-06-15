@@ -5,6 +5,8 @@ export const registerSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(6).optional(),
   password: z.string().min(6),
+  dateOfBirth: z.string().min(8),
+  marriageDate: z.string().optional().nullable(),
 });
 
 export const loginSchema = z.object({
@@ -27,7 +29,7 @@ export const bookingCreateSchema = z.object({
   serviceFee: z.number().min(0).optional(),
   taxes: z.number().min(0).optional(),
   totalAmount: z.number().min(0).optional(),
-  paymentMode: z.enum(['pay_now', 'pay_at_venue']).optional(),
+  paymentMode: z.enum(['pay_now', 'pay_at_venue', 'package_credit']).optional(),
   advanceAmount: z.number().min(0).optional(),
 });
 

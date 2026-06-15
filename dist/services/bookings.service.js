@@ -12,12 +12,22 @@ const auth_service_1 = require("./auth.service");
 const notifications_service_1 = require("./notifications.service");
 const whatsapp_notifications_service_1 = require("./whatsapp-notifications.service");
 const repo = () => data_source_1.AppDataSource.getRepository(Booking_1.Booking);
+const generateUniqueOrderId = async (bookingRepo) => {
+    while (true) {
+        const code = String((0, crypto_1.randomInt)(10000000, 100000000));
+        const exists = await bookingRepo.findOneBy({ orderId: code });
+        if (!exists)
+            return code;
+    }
+};
 const createBooking = async (payload) => {
     const bookingRepo = repo();
     const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
     if (exists)
         throw new Error('Slot already booked');
+    const orderId = await generateUniqueOrderId(bookingRepo);
     const booking = bookingRepo.create({
+        orderId,
         user: { id: payload.userId },
         suiteId: payload.suiteId,
         suiteName: payload.suiteName,
@@ -38,8 +48,9 @@ const createBooking = async (payload) => {
         status: 'pending',
         paymentStatus: 'pending',
     });
-    const saved = await bookingRepo.save(booking);
-    return saved;
+    const savedBooking = await bookingRepo.save(booking);
+    const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+    return finalBooking || savedBooking;
 };
 exports.createBooking = createBooking;
 const adminCreateBooking = async (payload) => {
@@ -66,7 +77,9 @@ const adminCreateBooking = async (payload) => {
         guestUser = await userRepo.save(guestUser);
     }
     // ── Create booking ─────────────────────────────────────────────────────────
+    const orderId = await generateUniqueOrderId(bookingRepo);
     const booking = bookingRepo.create({
+        orderId,
         user: { id: guestUser.id },
         userId: guestUser.id,
         suiteId: payload.suiteId,
@@ -118,6 +131,8 @@ const adminCreateBooking = async (payload) => {
         // WhatsApp: account created (best-effort)
         (0, whatsapp_notifications_service_1.sendAccountCreatedWhatsApp)({ phone: payload.guestPhone, fullName }).catch(() => { });
     }
+    const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+    // return finalBooking || savedBooking;
     // WhatsApp: booking confirmed (best-effort)
     (0, whatsapp_notifications_service_1.sendBookingConfirmedWhatsApp)({
         id: savedBooking.id,
@@ -125,19 +140,20 @@ const adminCreateBooking = async (payload) => {
         guestFirstName: payload.guestFirstName,
         guestLastName: payload.guestLastName,
     }).catch(() => { });
-    return savedBooking;
+    // return savedBooking;
+    return finalBooking || savedBooking;
 };
 exports.adminCreateBooking = adminCreateBooking;
 const findBookingsForUser = async (userId) => {
     const bookingRepo = repo();
-    return bookingRepo.find({ where: { user: { id: userId } }, order: { createdAt: 'DESC' } });
+    return bookingRepo.find({ where: { user: { id: userId } }, relations: ['user'], order: { createdAt: 'DESC' } });
 };
 exports.findBookingsForUser = findBookingsForUser;
 const findBookingByIdForUser = async (id, userId) => {
-    return repo().findOne({ where: { id, user: { id: userId } } });
+    return repo().findOne({ where: { id, user: { id: userId } }, relations: ['user'] });
 };
 exports.findBookingByIdForUser = findBookingByIdForUser;
-const findBookingById = async (id) => repo().findOneBy({ id });
+const findBookingById = async (id) => repo().findOne({ where: { id }, relations: ['user'] });
 exports.findBookingById = findBookingById;
 const updateBookingStatus = async (id, status) => {
     const booking = await repo().findOneBy({ id });
@@ -165,7 +181,7 @@ const cancelBooking = async (id, userId) => {
     return repo().save(booking);
 };
 exports.cancelBooking = cancelBooking;
-const findAllBookings = async () => repo().find({ order: { createdAt: 'DESC' } });
+const findAllBookings = async () => repo().find({ relations: ['user'], order: { createdAt: 'DESC' } });
 exports.findAllBookings = findAllBookings;
 const getMeetingLink = async (bookingId, requestingUserId, requestingRole) => {
     const bookingRepo = repo();

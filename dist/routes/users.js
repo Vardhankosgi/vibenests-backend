@@ -46,7 +46,7 @@ router.get('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async 
             phone: user.phone, role: user.role, isActive: user.isActive,
             isVerified: user.isVerified, createdAt: user.createdAt,
             bookings: bookings.map(b => ({
-                id: b.id, suite: b.suite?.name ?? `Suite ${b.suiteId}`,
+                id: b.id, orderId: b.orderId, suite: b.suite?.name ?? `Suite ${b.suiteId}`,
                 eventType: b.eventType, date: b.date, timeSlot: b.timeSlot,
                 totalAmount: b.totalAmount, status: b.status, createdAt: b.createdAt,
             })),
@@ -105,7 +105,7 @@ router.get('/me', auth_1.authenticate, async (req, res) => {
         const user = await repo().findOneBy({ id: req.user.id });
         if (!user)
             return res.status(404).json({ message: 'User not found' });
-        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role });
+        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
     }
     catch (err) {
         res.status(500).json({ message: err.message });
@@ -116,13 +116,15 @@ router.patch('/me', auth_1.authenticate, async (req, res) => {
         const user = await repo().findOneBy({ id: req.user.id });
         if (!user)
             return res.status(404).json({ message: 'User not found' });
-        const { fullName, phone } = req.body;
+        const { fullName, phone, dateOfBirth } = req.body;
         if (fullName)
             user.fullName = fullName;
         if (phone !== undefined)
             user.phone = phone;
+        if (dateOfBirth !== undefined)
+            user.dateOfBirth = dateOfBirth;
         await repo().save(user);
-        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role });
+        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
     }
     catch (err) {
         res.status(500).json({ message: err.message });

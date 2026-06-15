@@ -20,6 +20,10 @@ __decorate([
     __metadata("design:type", Number)
 ], Booking.prototype, "id", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true, unique: true }),
+    __metadata("design:type", String)
+], Booking.prototype, "orderId", void 0);
+__decorate([
     (0, typeorm_1.ManyToOne)(() => User_1.User, { nullable: true }),
     (0, typeorm_1.JoinColumn)({ name: 'userId' }),
     __metadata("design:type", User_1.User)

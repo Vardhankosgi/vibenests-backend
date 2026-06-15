@@ -10,7 +10,14 @@ const router = express.Router();
 router.post('/register', validateBody(registerSchema), async (req, res) => {
   try {
     const user = await registerUser(req.body);
-    res.status(201).json({ id: user.id, email: user.email, role: user.role, fullName: user.fullName, dateOfBirth: user.dateOfBirth ?? null });
+    res.status(201).json({ 
+      id: user.id, 
+      email: user.email, 
+      role: user.role, 
+      fullName: user.fullName, 
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null,
+    });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

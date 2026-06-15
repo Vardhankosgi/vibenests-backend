@@ -9,12 +9,26 @@ dotenv.config();
 
 const userRepo = () => AppDataSource.getRepository(User);
 
-export const registerUser = async (data: { fullName: string; email: string; password: string }) => {
+export const registerUser = async (data: { 
+  fullName: string; 
+  email: string; 
+  password: string;
+  phone?: string;
+  dateOfBirth: string;
+  marriageDate?: string;
+}) => {
   const repo = userRepo();
   const exists = await repo.findOneBy({ email: data.email });
   if (exists) throw new Error('User already exists');
   const hash = await bcrypt.hash(data.password, 10);
-  const user = repo.create({ fullName: data.fullName, email: data.email, password: hash });
+  const user = repo.create({ 
+    fullName: data.fullName, 
+    email: data.email, 
+    password: hash,
+    phone: data.phone,
+    dateOfBirth: data.dateOfBirth,
+    marriageDate: data.marriageDate,
+  });
   return repo.save(user);
 };
 
