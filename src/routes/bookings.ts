@@ -5,6 +5,8 @@ import { bookingCreateSchema, adminBookingSchema } from '../validation/schemas';
 import { AppDataSource } from '../data-source';
 import { In } from 'typeorm';
 import { AddOn } from '../entities/AddOn';
+import { Suite } from '../entities/Suite';
+
 import {
   createBooking,
   adminCreateBooking,
@@ -24,16 +26,33 @@ router.use(authenticate);
 router.get('/', async (req: any, res) => {
   const user = req.user;
   try {
-    if (user.role === 'admin') {
-      const all = await findAllBookings();
-      return res.json(all);
+    const bookings = user.role === 'admin' ? await findAllBookings() : await findBookingsForUser(user.id);
+
+    // Attach suite images to each booking by looking up related Suite.images
+    const suiteIds = Array.from(new Set((bookings as any[]).map((b) => b.suiteId).filter(Boolean)));
+    const suiteMap = new Map<number, Suite>();
+    if (suiteIds.length) {
+      const suiteRepo = AppDataSource.getRepository(Suite);
+      const suites = await suiteRepo.findBy({ id: In(suiteIds) });
+      for (const s of suites) suiteMap.set(s.id, s);
     }
-    const list = await findBookingsForUser(user.id);
-    res.json(list);
+
+    const enhanced = (bookings as any[]).map((b) => {
+      const suite = suiteMap.get(b.suiteId);
+      const images = (suite as any)?.images ?? [];
+      return {
+        ...b,
+        suiteImages: Array.isArray(images) ? images : [],
+        image: Array.isArray(images) && images.length ? images[0] : undefined,
+      };
+    });
+
+    res.json(enhanced);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 router.get('/:id', async (req: any, res) => {
   try {
@@ -46,8 +65,15 @@ router.get('/:id', async (req: any, res) => {
 
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
+    // Attach suite images to this booking
+    const suite = await AppDataSource.getRepository(Suite).findOne({ where: { id: (booking as any).suiteId } });
+    const images = (suite as any)?.images ?? [];
+    (booking as any).suiteImages = Array.isArray(images) ? images : [];
+    (booking as any).image = Array.isArray(images) && images.length ? images[0] : (booking as any).image;
+
     // Build add-ons details: name + price + quantity (quantity derived from duplicate IDs in booking.addOns)
     const addOns = Array.isArray((booking as any).addOns) ? (booking as any).addOns : [];
+
     const addOnCounts = addOns.reduce((acc: Record<string, number>, rawId: string) => {
       const key = String(rawId);
       if (!key) return acc;

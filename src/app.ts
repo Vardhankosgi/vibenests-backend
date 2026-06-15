@@ -17,14 +17,11 @@ import bookingRulesRoutes from './routes/bookingRules';
 import liveCelebrationRoutes from './routes/liveCelebrationSettings';
 import offerConfigRoutes from './routes/offerConfiguration';
 import auditLogsRoutes from './routes/auditLogs';
-<<<<<<< HEAD
 import webhookRoutes from './routes/webhook';
 import llmRoutes from './routes/llm';
 
 
-=======
 import celebrationPackagesRoutes from './routes/celebrationPackages';
->>>>>>> cff0b5f3f5f4dd10c8cd01b103a34dd41e7bd898
 
 const app = express();
 app.use(cors());
