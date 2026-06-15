@@ -9,6 +9,9 @@ const router = Router();
 // Public: validate coupon (called during checkout)
 router.post('/validate', validateBody(couponValidateSchema), ctrl.validateCoupon);
 
+// Public: list active coupons for user display
+router.get('/active', ctrl.listActiveCoupons);
+
 // Admin only
 router.use(authenticate, requireRole('admin'));
 router.get('/', ctrl.listCoupons);

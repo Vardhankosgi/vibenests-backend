@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
-import { createRazorpayOrder, listPaymentMethods, verifyAndConfirmPayment, verifyPayment, listPayments } from '../services/payments.service';
+import { createRazorpayOrder, listPaymentMethods, verifyAndConfirmPayment, verifyPayment, listPayments, listMyPayments } from '../services/payments.service';
 
 const router = express.Router();
 
@@ -75,6 +75,15 @@ router.post('/verify', authenticate, async (req: any, res) => {
     res.json(payment);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+router.get('/me', authenticate, async (req: any, res) => {
+  try {
+    const payments = await listMyPayments(req.user.id);
+    res.json(payments);
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 });
 

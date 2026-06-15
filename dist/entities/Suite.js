@@ -60,6 +60,22 @@ __decorate([
     __metadata("design:type", Array)
 ], Suite.prototype, "images", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ default: '09:00' }),
+    __metadata("design:type", String)
+], Suite.prototype, "slotStartTime", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: '21:00' }),
+    __metadata("design:type", String)
+], Suite.prototype, "slotEndTime", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int', { default: 150 }),
+    __metadata("design:type", Number)
+], Suite.prototype, "slotDurationMins", void 0);
+__decorate([
+    (0, typeorm_1.Column)('int', { default: 30 }),
+    __metadata("design:type", Number)
+], Suite.prototype, "gapBetweenSlotsMins", void 0);
+__decorate([
     (0, typeorm_1.Column)({ default: 'available' }),
     __metadata("design:type", String)
 ], Suite.prototype, "status", void 0);

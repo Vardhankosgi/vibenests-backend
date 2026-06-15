@@ -140,4 +140,14 @@ router.patch('/:id/cancel', async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 });
+router.post('/:id/meeting-link', async (req, res) => {
+    try {
+        const link = await (0, bookings_service_1.getMeetingLink)(Number(req.params.id), req.user.id, req.user.role);
+        res.json({ meeting_link: link });
+    }
+    catch (err) {
+        const status = err.message === 'Forbidden' ? 403 : err.message === 'Booking not found' ? 404 : 400;
+        res.status(status).json({ message: err.message });
+    }
+});
 exports.default = router;

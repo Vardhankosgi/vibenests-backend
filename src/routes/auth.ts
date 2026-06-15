@@ -10,7 +10,7 @@ const router = express.Router();
 router.post('/register', validateBody(registerSchema), async (req, res) => {
   try {
     const user = await registerUser(req.body);
-    res.status(201).json({ id: user.id, email: user.email, role: user.role, fullName: user.fullName });
+    res.status(201).json({ id: user.id, email: user.email, role: user.role, fullName: user.fullName, dateOfBirth: user.dateOfBirth ?? null });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -23,7 +23,7 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
     res.json({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
-      user: { id: data.user.id, email: data.user.email, role: data.user.role, fullName: data.user.fullName },
+      user: { id: data.user.id, email: data.user.email, role: data.user.role, fullName: data.user.fullName, dateOfBirth: data.user.dateOfBirth ?? null },
     });
   } catch (err: any) {
     res.status(400).json({ message: err.message });

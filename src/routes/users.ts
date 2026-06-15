@@ -42,7 +42,7 @@ router.get('/:id', authenticate, requireRole('admin'), async (req, res) => {
       phone: user.phone, role: user.role, isActive: user.isActive,
       isVerified: user.isVerified, createdAt: user.createdAt,
       bookings: bookings.map(b => ({
-        id: b.id, suite: (b as any).suite?.name ?? `Suite ${b.suiteId}`,
+        id: b.id, orderId: (b as any).orderId, suite: (b as any).suite?.name ?? `Suite ${b.suiteId}`,
         eventType: b.eventType, date: b.date, timeSlot: b.timeSlot,
         totalAmount: b.totalAmount, status: b.status, createdAt: b.createdAt,
       })),
@@ -96,7 +96,22 @@ router.get('/me', authenticate, async (req: any, res) => {
   try {
     const user = await repo().findOneBy({ id: req.user.id });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ id: user.id, fullName: user.fullName, email: user.email, role: user.role });
+    res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.patch('/me', authenticate, async (req: any, res) => {
+  try {
+    const user = await repo().findOneBy({ id: req.user.id });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const { fullName, phone, dateOfBirth } = req.body;
+    if (fullName) user.fullName = fullName;
+    if (phone !== undefined) user.phone = phone;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    await repo().save(user);
+    res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }

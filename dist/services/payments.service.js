@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyPayment = exports.verifyAndConfirmPayment = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
+exports.verifyPayment = exports.verifyAndConfirmPayment = exports.listMyPayments = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
 const data_source_1 = require("../data-source");
 const Payment_1 = require("../entities/Payment");
 const bookings_service_1 = require("./bookings.service");
@@ -61,8 +61,14 @@ const createPaymentIntent = async (bookingId, amount, method) => {
 exports.createPaymentIntent = createPaymentIntent;
 const findPaymentById = async (id) => repo().findOneBy({ id });
 exports.findPaymentById = findPaymentById;
-const listPayments = async () => repo().find({ order: { createdAt: 'DESC' } });
+const listPayments = async () => repo().find({ relations: ['booking', 'booking.user'], order: { createdAt: 'DESC' } });
 exports.listPayments = listPayments;
+const listMyPayments = async (userId) => repo().find({
+    where: { booking: { userId } },
+    relations: ['booking'],
+    order: { createdAt: 'DESC' },
+});
+exports.listMyPayments = listMyPayments;
 const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
     const payment = await repo().findOneBy({ id: paymentId });
     if (!payment)

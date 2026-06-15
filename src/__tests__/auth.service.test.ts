@@ -22,7 +22,7 @@ describe('auth.service', () => {
 
   test('loginUser returns tokens on valid credentials', async () => {
     const hashed = await bcrypt.hash('secret', 8);
-    mockRepo.findOneBy.mockResolvedValue({ id: 2, email: 't@example.com', password: hashed, role: 'customer' });
+    mockRepo.findOneBy.mockResolvedValue({ id: 2, email: 't@example.com', password: hashed, role: 'customer', isVerified: true });
     const data = await loginUser('t@example.com', 'secret');
     expect(data.accessToken).toBeDefined();
     expect(data.refreshToken).toBeDefined();

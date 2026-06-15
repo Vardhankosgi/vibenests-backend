@@ -10,7 +10,10 @@
     "emitDecoratorMetadata": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": [
+    "jest.config.ts",
+    "jest.config.js",
+    "dist",
+    "node_modules"
+  ],
 }
-

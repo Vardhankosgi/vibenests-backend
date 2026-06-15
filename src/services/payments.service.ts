@@ -60,7 +60,13 @@ export const createPaymentIntent = async (bookingId: number, amount: number, met
 
 export const findPaymentById = async (id: number) => repo().findOneBy({ id });
 
-export const listPayments = async () => repo().find({ order: { createdAt: 'DESC' } });
+export const listPayments = async () => repo().find({ relations: ['booking', 'booking.user'], order: { createdAt: 'DESC' } });
+
+export const listMyPayments = async (userId: number) => repo().find({
+  where: { booking: { userId } },
+  relations: ['booking'],
+  order: { createdAt: 'DESC' },
+});
 
 export const verifyAndConfirmPayment = async (
   paymentId: number,

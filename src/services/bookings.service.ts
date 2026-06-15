@@ -4,6 +4,7 @@ import { User } from '../entities/User';
 import { Suite } from '../entities/Suite';
 import { AddOn } from '../entities/AddOn';
 import { In } from 'typeorm';
+import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
 import { sendBookingConfirmationEmail, sendPasswordSetupEmail } from './notifications.service';
 import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
@@ -11,6 +12,13 @@ import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './what
 
 const repo = () => AppDataSource.getRepository(Booking);
 
+const generateUniqueOrderId = async (bookingRepo: any): Promise<string> => {
+  while (true) {
+    const code = String(randomInt(10000000, 100000000));
+    const exists = await bookingRepo.findOneBy({ orderId: code });
+    if (!exists) return code;
+  }
+};
 
 export const createBooking = async (payload: {
   userId: number;
@@ -35,7 +43,9 @@ export const createBooking = async (payload: {
   const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
   if (exists) throw new Error('Slot already booked');
 
+  const orderId = await generateUniqueOrderId(bookingRepo);
   const booking = bookingRepo.create({
+    orderId,
     user: { id: payload.userId } as User,
     suiteId: payload.suiteId,
     suiteName: payload.suiteName,
@@ -56,9 +66,9 @@ export const createBooking = async (payload: {
     status: 'pending',
     paymentStatus: 'pending',
   } as any);
-  const saved = await bookingRepo.save(booking);
-  return saved;
-
+  const savedBooking = await bookingRepo.save(booking) as any;
+  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+  return finalBooking || savedBooking;
 };
 
 export const adminCreateBooking = async (payload: {
@@ -99,7 +109,9 @@ export const adminCreateBooking = async (payload: {
   }
 
   // ── Create booking ─────────────────────────────────────────────────────────
+  const orderId = await generateUniqueOrderId(bookingRepo);
   const booking = bookingRepo.create({
+    orderId,
     user: { id: guestUser.id } as User,
     userId: guestUser.id,
     suiteId: payload.suiteId,
@@ -116,9 +128,7 @@ export const adminCreateBooking = async (payload: {
     status: 'confirmed',
     paymentStatus: 'success',
   } as any);
-  const savedBooking = await bookingRepo.save(booking as any);
-
-
+  const savedBooking = await bookingRepo.save(booking) as unknown as Booking;
 
   // ── Resolve suite name & addon names for email ────────────────────────────
   const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
@@ -157,32 +167,35 @@ export const adminCreateBooking = async (payload: {
     }).catch((e) => console.warn('Password setup email failed:', e?.message));
 
     // WhatsApp: account created (best-effort)
-    sendAccountCreatedWhatsApp({ phone: payload.guestPhone, fullName } as any).catch(() => {});
+    sendAccountCreatedWhatsApp({ phone: payload.guestPhone, fullName } as any).catch(() => { });
 
   }
 
+  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+  return finalBooking || savedBooking;
   // WhatsApp: booking confirmed (best-effort)
   sendBookingConfirmedWhatsApp({
     id: savedBooking.id,
     guestPhone: payload.guestPhone,
     guestFirstName: payload.guestFirstName,
     guestLastName: payload.guestLastName,
-  }).catch(() => {});
+  }).catch(() => { });
 
-  return savedBooking;
+  // return savedBooking;
+  return finalBooking || savedBooking;
 };
 
 
 export const findBookingsForUser = async (userId: number) => {
   const bookingRepo = repo();
-  return bookingRepo.find({ where: { user: { id: userId } } as any, order: { createdAt: 'DESC' } });
+  return bookingRepo.find({ where: { user: { id: userId } } as any, relations: ['user'], order: { createdAt: 'DESC' } });
 };
 
 export const findBookingByIdForUser = async (id: number, userId: number) => {
-  return repo().findOne({ where: { id, user: { id: userId } } as any });
+  return repo().findOne({ where: { id, user: { id: userId } } as any, relations: ['user'] });
 };
 
-export const findBookingById = async (id: number) => repo().findOneBy({ id });
+export const findBookingById = async (id: number) => repo().findOne({ where: { id }, relations: ['user'] });
 
 export const updateBookingStatus = async (id: number, status: Booking['status']) => {
   const booking = await repo().findOneBy({ id });
@@ -207,4 +220,19 @@ export const cancelBooking = async (id: number, userId: number) => {
   return repo().save(booking);
 };
 
-export const findAllBookings = async () => repo().find({ order: { createdAt: 'DESC' } });
+export const findAllBookings = async () => repo().find({ relations: ['user'], order: { createdAt: 'DESC' } });
+
+export const getMeetingLink = async (bookingId: number, requestingUserId: number, requestingRole: string): Promise<string> => {
+  const bookingRepo = repo();
+  const booking = await bookingRepo.findOneBy({ id: bookingId });
+  if (!booking) throw new Error('Booking not found');
+  if (requestingRole !== 'admin' && booking.userId !== requestingUserId) throw new Error('Forbidden');
+  if (booking.status !== 'confirmed') throw new Error('Meeting link is only available for confirmed bookings');
+
+  if ((booking as any).address?.meeting_link) return (booking as any).address.meeting_link;
+
+  const meetingLink = `https://meet.jit.si/VibeNests-${randomUUID()}`;
+  (booking as any).address = { ...((booking as any).address ?? {}), meeting_link: meetingLink, meeting_provider: 'jitsi' };
+  await bookingRepo.save(booking);
+  return meetingLink;
+};
