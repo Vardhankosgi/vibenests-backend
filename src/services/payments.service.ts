@@ -27,9 +27,16 @@ const activateMembershipForBooking = async (bookingId: number) => {
       if (planId) {
         const planRepo = AppDataSource.getRepository(MembershipPlan);
         const userMembershipRepo = AppDataSource.getRepository(UserMembership);
+        const paymentRepo = AppDataSource.getRepository(Payment);
         
         const plan = await planRepo.findOneBy({ id: planId });
         if (plan) {
+          // Find the successful payment for this package purchase booking
+          const payment = await paymentRepo.findOne({
+            where: { bookingId, status: 'success' },
+            order: { createdAt: 'DESC' }
+          });
+
           // Deactivate existing active memberships of this user
           await userMembershipRepo.update({ userId: booking.userId, status: 'active' }, { status: 'inactive' });
 
@@ -47,9 +54,9 @@ const activateMembershipForBooking = async (bookingId: number) => {
             activationDate: now,
             expiryDate: expiry,
             status: 'active',
-            paymentId: `MEM-PAY-BK-${bookingId}`,
-            paymentStatus: 'success',
-            amountPaid: plan.price,
+            paymentId: payment?.providerPaymentId || `MEM-PAY-BK-${bookingId}`,
+            paymentStatus: (payment?.status === 'failed' ? 'failed' : (payment?.status === 'pending' ? 'pending' : 'success')) as 'pending' | 'success' | 'failed',
+            amountPaid: payment ? Number(payment.amount) : plan.price,
           });
 
           await userMembershipRepo.save(userMembership);
