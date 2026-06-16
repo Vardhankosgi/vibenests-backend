@@ -194,32 +194,36 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
         console.warn('Guest backfill failed', err);
     }
     // Send confirmation email + WhatsApp concurrently (best-effort)
+    await sendPaymentSuccessNotifications(payment);
+    return payment;
+};
+exports.verifyAndConfirmPayment = verifyAndConfirmPayment;
+const sendPaymentSuccessNotifications = async (payment) => {
     try {
         const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
         const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
-        const user = booking?.user;
-        const email = user?.email || booking?.guestEmail;
-        const name = user?.fullName || `${booking?.guestFirstName ?? ''} ${booking?.guestLastName ?? ''}`.trim() || 'Guest';
+        if (!booking)
+            return;
+        const user = booking.user;
+        const email = user?.email || booking.guestEmail;
+        const name = user?.fullName || `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() || 'Guest';
         const emailPromise = email
             ? (0, notifications_service_1.sendEmail)(email, `Booking Confirmed – #VN${payment.bookingId} | VibeNests`, `Your booking #VN${payment.bookingId} has been confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`, buildConfirmationHtml({ bookingId: payment.bookingId, name, booking, amount: Number(payment.amount) }))
             : Promise.resolve();
         const whatsappPromise = (0, whatsapp_notifications_service_1.sendPaymentSuccessWhatsApp)({
             id: payment.bookingId,
-            guestPhone: booking?.guestPhone ?? user?.phone,
+            guestPhone: booking.guestPhone ?? user?.phone,
             user: user ? { phone: user.phone, fullName: user.fullName } : null,
             amount: Number(payment.amount),
-            guestFirstName: booking?.guestFirstName,
-            guestLastName: booking?.guestLastName,
+            guestFirstName: booking.guestFirstName,
+            guestLastName: booking.guestLastName,
         });
-        // Send both in same time (best-effort)
         await Promise.allSettled([emailPromise, whatsappPromise]);
     }
     catch (err) {
         console.warn('Payment success notification failed', err);
     }
-    return payment;
 };
-exports.verifyAndConfirmPayment = verifyAndConfirmPayment;
 const verifyPayment = async (paymentId, result) => {
     const payment = await repo().findOneBy({ id: paymentId });
     if (!payment)
@@ -233,17 +237,7 @@ const verifyPayment = async (paymentId, result) => {
     if (result.status === 'success') {
         await activateMembershipForBooking(payment.bookingId);
         await updateFullPaymentStatus(payment.bookingId);
-    }
-    try {
-        const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
-        const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
-        const user = booking?.user;
-        if (user?.email && result.status === 'success') {
-            await (0, notifications_service_1.sendEmail)(user.email, 'Payment received', `Your payment for booking ${payment.bookingId} succeeded.`);
-        }
-    }
-    catch (err) {
-        console.warn('Notification send failed', err);
+        await sendPaymentSuccessNotifications(payment);
     }
     return payment;
 };

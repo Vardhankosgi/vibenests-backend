@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const path_1 = __importDefault(require("path"));
 const translation_1 = require("./middleware/translation");
 const auth_1 = __importDefault(require("./routes/auth"));
 const bookings_1 = __importDefault(require("./routes/bookings"));
@@ -33,7 +32,6 @@ app.use(express_1.default.json());
 app.use(translation_1.languageResolverMiddleware);
 app.use(translation_1.translationMiddleware);
 app.use(express_1.default.json({ limit: '1mb' }));
-app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
 // Existing routes
 app.use('/auth', auth_1.default);
 app.use('/bookings', bookings_1.default);

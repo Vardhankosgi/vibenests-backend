@@ -9,7 +9,6 @@ const data_source_1 = require("./data-source");
 const offerSync_cron_1 = require("./cron/offerSync.cron");
 const User_1 = require("./entities/User");
 const MembershipPlan_1 = require("./entities/MembershipPlan");
-const RefundCalculation_1 = require("./entities/RefundCalculation");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 dotenv_1.default.config();
 const PORT = process.env.PORT || 4000;
@@ -71,59 +70,11 @@ async function seedMembershipPlans() {
         console.log('Gold membership plan seeded.');
     }
 }
-async function migrateRefundData() {
-    try {
-        const repo = data_source_1.AppDataSource.getRepository(RefundCalculation_1.RefundCalculation);
-        const refunds = await repo.find({ relations: ['booking'] });
-        console.log(`Checking ${refunds.length} refund request(s) for schema migration...`);
-        let migratedCount = 0;
-        for (const r of refunds) {
-            let updated = false;
-            if (!r.userId && r.booking) {
-                r.userId = r.booking.userId;
-                r.customerName = `${r.booking.guestFirstName || ''} ${r.booking.guestLastName || ''}`.trim() || 'Guest';
-                r.customerEmail = r.booking.guestEmail;
-                r.customerPhone = r.booking.guestPhone;
-                r.bookingDate = r.booking.date;
-                r.paymentMethod = r.booking.paymentMode;
-                updated = true;
-            }
-            if (!r.customerMessage && r.cancellationReason) {
-                r.customerMessage = r.cancellationReason;
-                updated = true;
-            }
-            if (!r.refundReason) {
-                r.refundReason = 'other';
-                updated = true;
-            }
-            if (!r.adminId && r.processedBy) {
-                r.adminId = r.processedBy;
-                updated = true;
-            }
-            if (r.status === 'processed') {
-                r.status = 'refunded';
-                r.completedAt = r.processedAt || new Date();
-                updated = true;
-            }
-            if (updated) {
-                await repo.save(r);
-                migratedCount++;
-            }
-        }
-        if (migratedCount > 0) {
-            console.log(`Migrated ${migratedCount} historical refund request(s).`);
-        }
-    }
-    catch (err) {
-        console.error('Failed to migrate legacy refund records:', err);
-    }
-}
 data_source_1.AppDataSource.initialize()
     .then(async () => {
     console.log('Database connected');
     await seedAdmin();
     await seedMembershipPlans();
-    await migrateRefundData();
     (0, offerSync_cron_1.startOfferCronJobs)();
     app_1.default.listen(PORT, () => {
         console.log(`Server started on http://localhost:${PORT}`);
