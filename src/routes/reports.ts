@@ -42,6 +42,7 @@ router.get('/revenue', async (req, res) => {
 
 // Customer report: new registrations within range
 router.get('/customers', async (req, res) => {
+
   try {
     const { start, end } = req.query as any;
     const qb = AppDataSource.getRepository('User').createQueryBuilder('u');

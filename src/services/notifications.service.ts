@@ -45,50 +45,79 @@ export const sendBookingConfirmationEmail = async (opts: {
   totalAmount: number;
 }) => {
   const addOnLine = opts.addOns.length
-    ? `<tr><td style="padding:6px 0;color:#888">Add-ons</td><td style="padding:6px 0;text-align:right">${opts.addOns.join(', ')}</td></tr>`
+    ? `<div style="margin:0 0 8px"><strong>Add-ons:</strong> ${opts.addOns.join(', ')}</div>`
     : '';
+
+  const footerYear = new Date().getFullYear();
   const html = `
-  <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#0d0d14;color:#e8e8e8;border-radius:12px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#b8972a,#e2c060);padding:28px 32px">
-      <h1 style="margin:0;font-size:22px;color:#0d0d14">Booking Confirmed ✓</h1>
-      <p style="margin:6px 0 0;color:#0d0d14;opacity:0.8">VibeNests</p>
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#111;border:1px solid #eee;border-radius:10px;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:12px">
+      <img alt="VibeNests" src="https://vibenests.com/logo.png" style="height:32px;width:auto" />
+      <div>
+        <div style="font-size:16px;font-weight:700;line-height:1">Booking Confirmed</div>
+        <div style="font-size:13px;color:#666;line-height:1;margin-top:2px">VibeNests</div>
+      </div>
     </div>
-    <div style="padding:28px 32px">
-      <p style="margin:0 0 20px">Hi <strong>${opts.guestName}</strong>, your booking has been confirmed by our team.</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:6px 0;color:#888">Booking ID</td><td style="padding:6px 0;text-align:right">#VN${opts.bookingId}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Suite</td><td style="padding:6px 0;text-align:right">${opts.suiteName}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Date</td><td style="padding:6px 0;text-align:right">${opts.date}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Time</td><td style="padding:6px 0;text-align:right">${opts.startTime} – ${opts.endTime}</td></tr>
-        <tr><td style="padding:6px 0;color:#888">Occasion</td><td style="padding:6px 0;text-align:right">${opts.occasion}</td></tr>
+
+    <div style="padding:18px 20px">
+      <p style="margin:0 0 14px">Hi <strong>${opts.guestName}</strong>, your booking is confirmed.</p>
+
+      <div style="background:#fafafa;border:1px solid #f1f1f1;border-radius:8px;padding:14px;">
+        <div style="margin:0 0 8px"><strong>Booking ID:</strong> #VN${opts.bookingId}</div>
+        <div style="margin:0 0 8px"><strong>Suite:</strong> ${opts.suiteName}</div>
+        <div style="margin:0 0 8px"><strong>Date:</strong> ${opts.date}</div>
+        <div style="margin:0 0 8px"><strong>Time:</strong> ${opts.startTime} – ${opts.endTime}</div>
+        <div style="margin:0 0 8px"><strong>Occasion:</strong> ${opts.occasion}</div>
         ${addOnLine}
-        <tr style="border-top:1px solid #333">
-          <td style="padding:10px 0 0;font-weight:700;color:#e2c060">Total Paid</td>
-          <td style="padding:10px 0 0;text-align:right;font-weight:700;color:#e2c060">₹${opts.totalAmount.toLocaleString('en-IN')}</td>
-        </tr>
-      </table>
-      <p style="margin:24px 0 0;font-size:13px;color:#888">For any queries, reply to this email or contact us.</p>
+        <div style="margin-top:10px;border-top:1px solid #eee;padding-top:10px;display:flex;justify-content:space-between">
+          <span style="color:#666">Total Paid</span>
+          <span style="font-weight:700">₹${opts.totalAmount.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+
+      <p style="margin:16px 0 0;color:#666;font-size:13px">For any queries, reply to this email or contact us.</p>
+    </div>
+
+    <div style="padding:14px 20px;border-top:1px solid #f0f0f0;color:#999;font-size:12px;text-align:center">
+      © ${footerYear} VibeNests. All rights reserved.
     </div>
   </div>`;
+
   return sendEmail(opts.to, `Booking Confirmed – #VN${opts.bookingId} | VibeNests`, `Your booking #VN${opts.bookingId} on ${opts.date} is confirmed.`, html);
 };
 
 export const sendPasswordSetupEmail = async (opts: { to: string; guestName: string; resetToken: string }) => {
   const frontendUrl = process.env.FRONTEND_ORIGIN || 'http://localhost:5174';
   const link = `${frontendUrl}/reset-password?token=${opts.resetToken}`;
+  const footerYear = new Date().getFullYear();
+
   const html = `
-  <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#0d0d14;color:#e8e8e8;border-radius:12px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#b8972a,#e2c060);padding:28px 32px">
-      <h1 style="margin:0;font-size:22px;color:#0d0d14">Set Up Your Account</h1>
-      <p style="margin:6px 0 0;color:#0d0d14;opacity:0.8">VibeNests</p>
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#111;border:1px solid #eee;border-radius:10px;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:12px">
+      <img alt="VibeNests" src="https://vibenests.com/logo.png" style="height:32px;width:auto" />
+      <div>
+        <div style="font-size:16px;font-weight:700;line-height:1">Account Setup</div>
+        <div style="font-size:13px;color:#666;line-height:1;margin-top:2px">VibeNests</div>
+      </div>
     </div>
-    <div style="padding:28px 32px">
-      <p style="margin:0 0 16px">Hi <strong>${opts.guestName}</strong>, an account has been created for you at VibeNests.</p>
-      <p style="margin:0 0 24px;color:#aaa">Click the button below to set your password and activate your account. This link expires in 24 hours.</p>
-      <a href="${link}" style="display:inline-block;background:linear-gradient(135deg,#b8972a,#e2c060);color:#0d0d14;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none">Set My Password</a>
-      <p style="margin:20px 0 0;font-size:12px;color:#666">Or copy this link: ${link}</p>
+
+    <div style="padding:18px 20px">
+      <p style="margin:0 0 14px">Hi <strong>${opts.guestName}</strong>, an account has been created for you at VibeNests.</p>
+      <p style="margin:0 0 18px;color:#666;font-size:14px">Click the button below to set your password and activate your account.</p>
+
+      <div style="text-align:center;margin:18px 0">
+        <a href="${link}" style="display:inline-block;background:#111;color:#fff;font-weight:700;padding:12px 22px;border-radius:8px;text-decoration:none">Set My Password</a>
+      </div>
+
+      <p style="margin:0;color:#666;font-size:13px">If the button doesn’t work, copy and paste this link into your browser:</p>
+      <p style="margin:8px 0 0;word-break:break-all;color:#111;font-size:13px">${link}</p>
+    </div>
+
+    <div style="padding:14px 20px;border-top:1px solid #f0f0f0;color:#999;font-size:12px;text-align:center">
+      © ${footerYear} VibeNests. All rights reserved.
     </div>
   </div>`;
+
   return sendEmail(opts.to, 'Set up your VibeNests account', `Set your password: ${link}`, html);
 };
 

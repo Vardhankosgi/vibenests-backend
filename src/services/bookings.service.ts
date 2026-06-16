@@ -67,9 +67,10 @@ export const createBooking = async (payload: {
     paymentStatus: 'pending',
   } as any);
   const savedBooking = await bookingRepo.save(booking) as any;
-  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+  const finalBooking = await bookingRepo.findOne?.({ where: { id: savedBooking.id }, relations: ['user'] } as any);
   return finalBooking || savedBooking;
 };
+
 
 export const adminCreateBooking = async (payload: {
   suiteId: number;
@@ -171,22 +172,22 @@ export const adminCreateBooking = async (payload: {
 
   }
 
-  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
-  return finalBooking || savedBooking;
-  // WhatsApp: booking confirmed (best-effort)
+  const finalBooking = await bookingRepo.findOne?.({ where: { id: savedBooking.id }, relations: ['user'] } as any);
+
+  // Booking confirmation: send WhatsApp (best-effort) - Email was already triggered above.
   sendBookingConfirmedWhatsApp({
     id: savedBooking.id,
     guestPhone: payload.guestPhone,
     guestFirstName: payload.guestFirstName,
     guestLastName: payload.guestLastName,
-  }).catch(() => { });
+  }).catch(() => undefined);
 
-  // return savedBooking;
   return finalBooking || savedBooking;
 };
 
-
 export const findBookingsForUser = async (userId: number) => {
+
+
   const bookingRepo = repo();
   return bookingRepo.find({ where: { user: { id: userId } } as any, relations: ['user'], order: { createdAt: 'DESC' } });
 };

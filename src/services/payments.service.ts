@@ -2,6 +2,8 @@ import { AppDataSource } from '../data-source';
 import { Payment } from '../entities/Payment';
 import { updateBookingPaymentStatus, updateBookingStatus } from './bookings.service';
 import { sendEmail } from './notifications.service';
+import { sendPaymentSuccessWhatsApp } from './whatsapp-notifications.service';
+
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -139,24 +141,39 @@ export const verifyAndConfirmPayment = async (
     console.warn('Guest backfill failed', err);
   }
 
-  // Send confirmation email
+  // Send confirmation email + WhatsApp concurrently (best-effort)
   try {
     const bookingRepo = AppDataSource.getRepository('Booking');
     const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] }) as any;
     const user = booking?.user;
     const email = user?.email || booking?.guestEmail;
     const name = user?.fullName || `${booking?.guestFirstName ?? ''} ${booking?.guestLastName ?? ''}`.trim() || 'Guest';
-    if (email) {
-      await sendEmail(
-        email,
-        `Booking Confirmed – #VN${payment.bookingId} | VibeNests`,
-        `Your booking #VN${payment.bookingId} has been confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`,
-        buildConfirmationHtml({ bookingId: payment.bookingId, name, booking, amount: Number(payment.amount) }),
-      );
-    }
+
+    const emailPromise = email
+      ? sendEmail(
+          email,
+          `Booking Confirmed – #VN${payment.bookingId} | VibeNests`,
+          `Your booking #VN${payment.bookingId} has been confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`,
+          buildConfirmationHtml({ bookingId: payment.bookingId, name, booking, amount: Number(payment.amount) }),
+        )
+      : Promise.resolve();
+
+    const whatsappPromise = sendPaymentSuccessWhatsApp({
+      id: payment.bookingId,
+      guestPhone: booking?.guestPhone ?? user?.phone,
+      user: user ? { phone: user.phone, fullName: user.fullName } : null,
+      amount: Number(payment.amount),
+      guestFirstName: booking?.guestFirstName,
+      guestLastName: booking?.guestLastName,
+    } as any);
+
+    // Send both in same time (best-effort)
+    await Promise.allSettled([emailPromise, whatsappPromise]);
+
   } catch (err) {
-    console.warn('Confirmation email failed', err);
+    console.warn('Payment success notification failed', err);
   }
+
 
   return payment;
 
@@ -194,26 +211,41 @@ export const verifyPayment = async (paymentId: number, result: { status: 'succes
 
 function buildConfirmationHtml(opts: { bookingId: number; name: string; booking: any; amount: number }) {
   const { bookingId, name, booking, amount } = opts;
-  return `
-  <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#0d0d14;color:#e8e8e8;border-radius:12px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#b8972a,#e2c060);padding:28px 32px">
-      <h1 style="margin:0;font-size:22px;color:#0d0d14">Booking Confirmed ✓</h1>
-      <p style="margin:6px 0 0;color:#0d0d14;opacity:0.8">VibeNests Private Luxury Suites</p>
+  const footerYear = new Date().getFullYear();
+
+  const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#111;border:1px solid #eee;border-radius:10px;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:12px">
+      <img alt="VibeNests" src="https://vibenests.com/logo.png" style="height:32px;width:auto" />
+      <div>
+        <div style="font-size:16px;font-weight:700;line-height:1">Payment Received</div>
+        <div style="font-size:13px;color:#666;line-height:1;margin-top:2px">VibeNests</div>
+      </div>
     </div>
-    <div style="padding:28px 32px">
-      <p style="margin:0 0 20px">Hi <strong>${name}</strong>, your payment was successful and booking is confirmed!</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:6px 0;color:#888">Booking ID</td><td style="padding:6px 0;text-align:right">#VN${bookingId}</td></tr>
-        ${booking?.suiteName ? `<tr><td style="padding:6px 0;color:#888">Suite</td><td style="padding:6px 0;text-align:right">${booking.suiteName}</td></tr>` : ''}
-        ${booking?.date ? `<tr><td style="padding:6px 0;color:#888">Date</td><td style="padding:6px 0;text-align:right">${booking.date}</td></tr>` : ''}
-        ${booking?.timeSlot ? `<tr><td style="padding:6px 0;color:#888">Time</td><td style="padding:6px 0;text-align:right">${booking.timeSlot}${booking.endTimeSlot ? ' – ' + booking.endTimeSlot : ''}</td></tr>` : ''}
-        ${booking?.eventType ? `<tr><td style="padding:6px 0;color:#888">Occasion</td><td style="padding:6px 0;text-align:right">${booking.eventType}</td></tr>` : ''}
-        <tr style="border-top:1px solid #333">
-          <td style="padding:10px 0 0;font-weight:700;color:#e2c060">Amount Paid</td>
-          <td style="padding:10px 0 0;text-align:right;font-weight:700;color:#e2c060">₹${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      </table>
-      <p style="margin:24px 0 0;font-size:13px;color:#888">For any queries, reply to this email or contact us.</p>
+
+    <div style="padding:18px 20px">
+      <p style="margin:0 0 14px">Hi <strong>${name}</strong>, your payment was successful and your booking is confirmed.</p>
+
+      <div style="background:#fafafa;border:1px solid #f1f1f1;border-radius:8px;padding:14px;">
+        <div style="margin:0 0 8px"><strong>Booking ID:</strong> #VN${bookingId}</div>
+        ${booking?.suiteName ? `<div style="margin:0 0 8px"><strong>Suite:</strong> ${booking.suiteName}</div>` : ''}
+        ${booking?.date ? `<div style="margin:0 0 8px"><strong>Date:</strong> ${booking.date}</div>` : ''}
+        ${booking?.timeSlot ? `<div style="margin:0 0 8px"><strong>Time:</strong> ${booking.timeSlot}${booking.endTimeSlot ? ' – ' + booking.endTimeSlot : ''}</div>` : ''}
+        ${booking?.eventType ? `<div style="margin:0 0 8px"><strong>Occasion:</strong> ${booking.eventType}</div>` : ''}
+
+        <div style="margin-top:10px;border-top:1px solid #eee;padding-top:10px;display:flex;justify-content:space-between">
+          <span style="color:#666">Amount Paid</span>
+          <span style="font-weight:700">₹${amount.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+
+      <p style="margin:16px 0 0;color:#666;font-size:13px">For any queries, reply to this email or contact us.</p>
+    </div>
+
+    <div style="padding:14px 20px;border-top:1px solid #f0f0f0;color:#999;font-size:12px;text-align:center">
+      © ${footerYear} VibeNests. All rights reserved.
     </div>
   </div>`;
+
+  return html;
 }
