@@ -27,6 +27,7 @@ describe('payments.service', () => {
     mockRepo.save = jest.fn(async (x: any) => ({ id: 20, ...x }));
     mockRepo.findOneBy = jest.fn(async (query: any) => ({ id: 20, bookingId: 2, status: 'pending' }));
     mockRepo.findOne = jest.fn(async (opts: any) => ({ id: 2, user: { email: 't@example.com' } }));
+    mockRepo.find = jest.fn(async () => []);
     jest.spyOn(AppDataSource, 'getRepository').mockReturnValue(mockRepo as any);
   });
 

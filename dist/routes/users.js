@@ -8,6 +8,7 @@ const auth_1 = require("../middleware/auth");
 const data_source_1 = require("../data-source");
 const User_1 = require("../entities/User");
 const Booking_1 = require("../entities/Booking");
+const UserMembership_1 = require("../entities/UserMembership");
 const auth_service_1 = require("../services/auth.service");
 const notifications_service_1 = require("../services/notifications.service");
 const router = express_1.default.Router();
@@ -20,11 +21,22 @@ router.get('/', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (re
             .loadRelationCountAndMap('u.bookingCount', 'u.bookings')
             .orderBy('u.createdAt', 'DESC')
             .getMany();
+        const activeMemberships = await data_source_1.AppDataSource.getRepository(UserMembership_1.UserMembership).find({
+            where: { status: 'active' }
+        });
+        const now = new Date();
+        const activeMap = new Map();
+        for (const um of activeMemberships) {
+            if (um.expiryDate > now) {
+                activeMap.set(um.userId, um.planName);
+            }
+        }
         res.json(users.map((u) => ({
             id: u.id, fullName: u.fullName, email: u.email,
             phone: u.phone, role: u.role, isActive: u.isActive,
             isVerified: u.isVerified, createdAt: u.createdAt,
             bookingCount: u.bookingCount ?? 0,
+            membership: activeMap.get(u.id) || null,
         })));
     }
     catch (err) {
@@ -41,10 +53,16 @@ router.get('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async 
             relations: ['suite'],
             order: { createdAt: 'DESC' },
         });
+        const activeMembership = await data_source_1.AppDataSource.getRepository(UserMembership_1.UserMembership).findOne({
+            where: { userId: user.id, status: 'active' }
+        });
+        const now = new Date();
+        const isMember = activeMembership && activeMembership.expiryDate > now;
         res.json({
             id: user.id, fullName: user.fullName, email: user.email,
             phone: user.phone, role: user.role, isActive: user.isActive,
             isVerified: user.isVerified, createdAt: user.createdAt,
+            membership: isMember ? activeMembership.planName : null,
             bookings: bookings.map(b => ({
                 id: b.id, orderId: b.orderId, suite: b.suite?.name ?? `Suite ${b.suiteId}`,
                 eventType: b.eventType, date: b.date, timeSlot: b.timeSlot,

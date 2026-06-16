@@ -5,6 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const auth_1 = require("../middleware/auth");
+const data_source_1 = require("../data-source");
+const Booking_1 = require("../entities/Booking");
+const SuiteAvailability_1 = require("../entities/SuiteAvailability");
+const typeorm_1 = require("typeorm");
 const suites_service_1 = require("../services/suites.service");
 const router = express_1.default.Router();
 router.get('/', async (req, res) => {
@@ -80,6 +84,77 @@ router.delete('/:id/availability/:availabilityId', auth_1.authenticate, (0, auth
     }
     catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+router.get('/:id/blocked-slots', async (req, res) => {
+    try {
+        const suiteId = Number(req.params.id);
+        const date = req.query.date;
+        if (!date) {
+            return res.status(400).json({ message: 'Date parameter is required' });
+        }
+        const bookingRepo = data_source_1.AppDataSource.getRepository(Booking_1.Booking);
+        const bookings = await bookingRepo.find({
+            where: {
+                suiteId,
+                date,
+                status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
+            },
+        });
+        const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
+        const blocks = await availabilityRepo.find({
+            where: {
+                suiteId,
+                date,
+                status: 'blocked',
+            },
+        });
+        const blockedSlots = new Set();
+        bookings.forEach((b) => {
+            if (b.timeSlot)
+                blockedSlots.add(b.timeSlot);
+        });
+        blocks.forEach((b) => {
+            if (b.timeSlot)
+                blockedSlots.add(b.timeSlot);
+        });
+        res.json(Array.from(blockedSlots));
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+router.get('/:id/availability-details', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
+    try {
+        const suiteId = Number(req.params.id);
+        const date = req.query.date;
+        if (!date) {
+            return res.status(400).json({ message: 'Date parameter is required' });
+        }
+        const bookingRepo = data_source_1.AppDataSource.getRepository(Booking_1.Booking);
+        const bookings = await bookingRepo.find({
+            where: {
+                suiteId,
+                date,
+                status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
+            },
+            relations: ['user'],
+        });
+        const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
+        const blocks = await availabilityRepo.find({
+            where: {
+                suiteId,
+                date,
+                status: 'blocked',
+            },
+        });
+        res.json({
+            bookings,
+            blocks,
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 exports.default = router;

@@ -121,6 +121,10 @@ __decorate([
     __metadata("design:type", String)
 ], Booking.prototype, "paymentStatus", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ default: false }),
+    __metadata("design:type", Boolean)
+], Booking.prototype, "fullPaymentReceived", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'jsonb', nullable: true, default: null }),
     __metadata("design:type", Object)
 ], Booking.prototype, "address", void 0);

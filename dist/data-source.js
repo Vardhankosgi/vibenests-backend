@@ -15,8 +15,6 @@ const Payment_1 = require("./entities/Payment");
 const RefreshToken_1 = require("./entities/RefreshToken");
 const Offer_1 = require("./entities/Offer");
 const Coupon_1 = require("./entities/Coupon");
-const RefundPolicy_1 = require("./entities/RefundPolicy");
-const AddOnRefundRule_1 = require("./entities/AddOnRefundRule");
 const LiveCelebrationSetting_1 = require("./entities/LiveCelebrationSetting");
 const TaxCharge_1 = require("./entities/TaxCharge");
 const BookingRule_1 = require("./entities/BookingRule");
@@ -39,7 +37,7 @@ exports.AppDataSource = new typeorm_1.DataSource({
     logging: false,
     entities: [
         User_1.User, Booking_1.Booking, Suite_1.Suite, SuiteAvailability_1.SuiteAvailability, AddOn_1.AddOn, Payment_1.Payment, RefreshToken_1.RefreshToken,
-        Offer_1.Offer, Coupon_1.Coupon, RefundPolicy_1.RefundPolicy, AddOnRefundRule_1.AddOnRefundRule, LiveCelebrationSetting_1.LiveCelebrationSetting,
+        Offer_1.Offer, Coupon_1.Coupon, LiveCelebrationSetting_1.LiveCelebrationSetting,
         TaxCharge_1.TaxCharge, BookingRule_1.BookingRule, RefundCalculation_1.RefundCalculation, AuditLog_1.AuditLog, OfferConfiguration_1.OfferConfiguration,
         MembershipPlan_1.MembershipPlan, UserMembership_1.UserMembership, Translation_1.Translation, Review_1.Review,
         OtpCode_1.OtpCode, WhatsAppMessage_1.WhatsAppMessage, WhatsAppEvent_1.WhatsAppEvent,

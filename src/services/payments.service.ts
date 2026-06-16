@@ -212,12 +212,19 @@ export const verifyAndConfirmPayment = async (
   }
 
   // Send confirmation email + WhatsApp concurrently (best-effort)
+  await sendPaymentSuccessNotifications(payment);
+
+  return payment;
+};
+
+const sendPaymentSuccessNotifications = async (payment: Payment) => {
   try {
     const bookingRepo = AppDataSource.getRepository('Booking');
     const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] }) as any;
-    const user = booking?.user;
-    const email = user?.email || booking?.guestEmail;
-    const name = user?.fullName || `${booking?.guestFirstName ?? ''} ${booking?.guestLastName ?? ''}`.trim() || 'Guest';
+    if (!booking) return;
+    const user = booking.user;
+    const email = user?.email || booking.guestEmail;
+    const name = user?.fullName || `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() || 'Guest';
 
     const emailPromise = email
       ? sendEmail(
@@ -230,23 +237,17 @@ export const verifyAndConfirmPayment = async (
 
     const whatsappPromise = sendPaymentSuccessWhatsApp({
       id: payment.bookingId,
-      guestPhone: booking?.guestPhone ?? user?.phone,
+      guestPhone: booking.guestPhone ?? user?.phone,
       user: user ? { phone: user.phone, fullName: user.fullName } : null,
       amount: Number(payment.amount),
-      guestFirstName: booking?.guestFirstName,
-      guestLastName: booking?.guestLastName,
+      guestFirstName: booking.guestFirstName,
+      guestLastName: booking.guestLastName,
     } as any);
 
-    // Send both in same time (best-effort)
     await Promise.allSettled([emailPromise, whatsappPromise]);
-
   } catch (err) {
     console.warn('Payment success notification failed', err);
   }
-
-
-  return payment;
-
 };
 
 export const verifyPayment = async (paymentId: number, result: { status: 'success' | 'failed'; providerPaymentId?: string; providerOrderId?: string; providerSignature?: string }) => {
@@ -261,16 +262,7 @@ export const verifyPayment = async (paymentId: number, result: { status: 'succes
   if (result.status === 'success') {
     await activateMembershipForBooking(payment.bookingId);
     await updateFullPaymentStatus(payment.bookingId);
-  }
-  try {
-    const bookingRepo = AppDataSource.getRepository('Booking');
-    const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
-    const user = (booking as any)?.user;
-    if (user?.email && result.status === 'success') {
-      await sendEmail(user.email, 'Payment received', `Your payment for booking ${payment.bookingId} succeeded.`);
-    }
-  } catch (err) {
-    console.warn('Notification send failed', err);
+    await sendPaymentSuccessNotifications(payment);
   }
   return payment;
 };

@@ -6,6 +6,8 @@ const Booking_1 = require("../entities/Booking");
 const User_1 = require("../entities/User");
 const Suite_1 = require("../entities/Suite");
 const AddOn_1 = require("../entities/AddOn");
+const UserMembership_1 = require("../entities/UserMembership");
+const SuiteAvailability_1 = require("../entities/SuiteAvailability");
 const typeorm_1 = require("typeorm");
 const crypto_1 = require("crypto");
 const auth_service_1 = require("./auth.service");
@@ -22,9 +24,45 @@ const generateUniqueOrderId = async (bookingRepo) => {
 };
 const createBooking = async (payload) => {
     const bookingRepo = repo();
-    const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
-    if (exists)
-        throw new Error('Slot already booked');
+    if (payload.suiteId !== 0) {
+        const exists = await bookingRepo.findOne({
+            where: {
+                suiteId: payload.suiteId,
+                date: payload.date,
+                timeSlot: payload.timeSlot,
+                status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
+            },
+        });
+        if (exists)
+            throw new Error('Slot already booked');
+        const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
+        const blocked = await availabilityRepo.findOne({
+            where: {
+                suiteId: payload.suiteId,
+                date: payload.date,
+                timeSlot: payload.timeSlot,
+                status: 'blocked',
+            },
+        });
+        if (blocked)
+            throw new Error('Slot is blocked by administration');
+    }
+    const isPackageCredit = payload.paymentMode === 'package_credit';
+    let activeMembership = null;
+    if (isPackageCredit) {
+        const userMembershipRepo = data_source_1.AppDataSource.getRepository(UserMembership_1.UserMembership);
+        activeMembership = await userMembershipRepo.findOneBy({ userId: payload.userId, status: 'active' });
+        if (!activeMembership) {
+            throw new Error('You do not have an active package membership.');
+        }
+        if (activeMembership.bookingsUsed >= activeMembership.maxFreeBookings) {
+            throw new Error('You have used all free bookings allowed in your package.');
+        }
+        const eligibleSuites = activeMembership.eligibleSuites || [];
+        if (!eligibleSuites.includes(String(payload.suiteId))) {
+            throw new Error('This suite is not eligible for free bookings under your active package.');
+        }
+    }
     const orderId = await generateUniqueOrderId(bookingRepo);
     const booking = bookingRepo.create({
         orderId,
@@ -42,13 +80,19 @@ const createBooking = async (payload) => {
         savings: payload.savings ?? 0,
         serviceFee: payload.serviceFee ?? 0,
         taxes: payload.taxes ?? 0,
-        totalAmount: payload.totalAmount ?? 0,
+        totalAmount: isPackageCredit ? 0 : (payload.totalAmount ?? 0),
         paymentMode: payload.paymentMode ?? 'pay_now',
-        advanceAmount: payload.advanceAmount ?? 0,
-        status: 'pending',
-        paymentStatus: 'pending',
+        advanceAmount: isPackageCredit ? 0 : (payload.advanceAmount ?? 0),
+        status: isPackageCredit ? 'confirmed' : 'pending',
+        paymentStatus: isPackageCredit ? 'success' : 'pending',
+        fullPaymentReceived: isPackageCredit ? true : false,
     });
     const savedBooking = await bookingRepo.save(booking);
+    if (isPackageCredit && activeMembership) {
+        const userMembershipRepo = data_source_1.AppDataSource.getRepository(UserMembership_1.UserMembership);
+        activeMembership.bookingsUsed += 1;
+        await userMembershipRepo.save(activeMembership);
+    }
     const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
     return finalBooking || savedBooking;
 };
@@ -58,9 +102,27 @@ const adminCreateBooking = async (payload) => {
     const userRepo = data_source_1.AppDataSource.getRepository(User_1.User);
     const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
     const addonRepo = data_source_1.AppDataSource.getRepository(AddOn_1.AddOn);
-    const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
+    const exists = await bookingRepo.findOne({
+        where: {
+            suiteId: payload.suiteId,
+            date: payload.date,
+            timeSlot: payload.timeSlot,
+            status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
+        },
+    });
     if (exists)
         throw new Error('Slot already booked for this date and time');
+    const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
+    const blocked = await availabilityRepo.findOne({
+        where: {
+            suiteId: payload.suiteId,
+            date: payload.date,
+            timeSlot: payload.timeSlot,
+            status: 'blocked',
+        },
+    });
+    if (blocked)
+        throw new Error('Slot is blocked by administration');
     // ── Upsert guest user ──────────────────────────────────────────────────────
     const fullName = `${payload.guestFirstName} ${payload.guestLastName}`.trim();
     let guestUser = await userRepo.findOneBy({ email: payload.guestEmail });
@@ -95,6 +157,7 @@ const adminCreateBooking = async (payload) => {
         totalAmount: payload.totalAmount,
         status: 'confirmed',
         paymentStatus: 'success',
+        fullPaymentReceived: true,
     });
     const savedBooking = await bookingRepo.save(booking);
     // ── Resolve suite name & addon names for email ────────────────────────────
@@ -139,8 +202,7 @@ const adminCreateBooking = async (payload) => {
         guestPhone: payload.guestPhone,
         guestFirstName: payload.guestFirstName,
         guestLastName: payload.guestLastName,
-    }).catch(() => { });
-    // return savedBooking;
+    }).catch(() => undefined);
     return finalBooking || savedBooking;
 };
 exports.adminCreateBooking = adminCreateBooking;

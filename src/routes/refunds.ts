@@ -1,17 +1,26 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
-import { validateBody } from '../middleware/validate';
 import * as ctrl from '../controllers/refundEngine.controller';
-import { refundInitiateSchema, refundProcessSchema } from '../validation/offersSchemas';
 
 const router = Router();
+
+// ── Public: policy tiers ──────────────────────────────────────────────────────
+router.get('/policy', ctrl.getPolicy);
+
+// ── Authenticated ─────────────────────────────────────────────────────────────
 router.use(authenticate);
 
-router.post('/calculate', validateBody(refundInitiateSchema), ctrl.calculateRefund);
-router.post('/initiate', validateBody(refundInitiateSchema), ctrl.initiateRefund);
+// Customer-facing
+router.post('/calculate', ctrl.calculateRefund);
+router.post('/initiate', ctrl.initiateRefund);
+router.get('/', ctrl.listRefunds);
+router.get('/:id', ctrl.getRefund);
 
-router.get('/', requireRole('admin'), ctrl.listRefunds);
-router.get('/:id', requireRole('admin'), ctrl.getRefund);
-router.patch('/:id/process', requireRole('admin'), validateBody(refundProcessSchema), ctrl.processRefund);
+// Admin manual overrides (exceptional cases)
+router.patch('/:id/under-review', requireRole('admin'), ctrl.markUnderReview);
+router.post('/:id/approve', requireRole('admin'), ctrl.approveRefund);
+router.post('/:id/reject', requireRole('admin'), ctrl.rejectRefund);
+router.post('/:id/processing', requireRole('admin'), ctrl.progressToProcessing);
+router.post('/:id/complete', requireRole('admin'), ctrl.completeRefund);
 
 export default router;

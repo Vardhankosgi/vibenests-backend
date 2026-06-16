@@ -6,8 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyPayment = exports.verifyAndConfirmPayment = exports.listMyPayments = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
 const data_source_1 = require("../data-source");
 const Payment_1 = require("../entities/Payment");
+const Booking_1 = require("../entities/Booking");
 const bookings_service_1 = require("./bookings.service");
 const notifications_service_1 = require("./notifications.service");
+const whatsapp_notifications_service_1 = require("./whatsapp-notifications.service");
+const UserMembership_1 = require("../entities/UserMembership");
+const MembershipPlan_1 = require("../entities/MembershipPlan");
 const razorpay_1 = __importDefault(require("razorpay"));
 const crypto_1 = __importDefault(require("crypto"));
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -17,6 +21,73 @@ let razor = null;
 if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
     razor = new razorpay_1.default({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
 }
+const activateMembershipForBooking = async (bookingId) => {
+    try {
+        const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
+        const booking = await bookingRepo.findOneBy({ id: bookingId });
+        if (booking && booking.suiteId === 0 && String(booking.eventType).startsWith('package:')) {
+            const planId = Number(String(booking.eventType).split(':')[1]);
+            if (planId) {
+                const planRepo = data_source_1.AppDataSource.getRepository(MembershipPlan_1.MembershipPlan);
+                const userMembershipRepo = data_source_1.AppDataSource.getRepository(UserMembership_1.UserMembership);
+                const paymentRepo = data_source_1.AppDataSource.getRepository(Payment_1.Payment);
+                const plan = await planRepo.findOneBy({ id: planId });
+                if (plan) {
+                    // Find the successful payment for this package purchase booking
+                    const payment = await paymentRepo.findOne({
+                        where: { bookingId, status: 'success' },
+                        order: { createdAt: 'DESC' }
+                    });
+                    // Deactivate existing active memberships of this user
+                    await userMembershipRepo.update({ userId: booking.userId, status: 'active' }, { status: 'inactive' });
+                    const now = new Date();
+                    const expiry = new Date();
+                    expiry.setDate(now.getDate() + plan.validityDays);
+                    const userMembership = userMembershipRepo.create({
+                        userId: booking.userId,
+                        planId: plan.id,
+                        planName: plan.name,
+                        maxFreeBookings: plan.maxFreeBookings ?? 10,
+                        bookingsUsed: 0,
+                        eligibleSuites: plan.eligibleSuites || [],
+                        activationDate: now,
+                        expiryDate: expiry,
+                        status: 'active',
+                        paymentId: payment?.providerPaymentId || `MEM-PAY-BK-${bookingId}`,
+                        paymentStatus: (payment?.status === 'failed' ? 'failed' : (payment?.status === 'pending' ? 'pending' : 'success')),
+                        amountPaid: payment ? Number(payment.amount) : plan.price,
+                    });
+                    await userMembershipRepo.save(userMembership);
+                    console.log(`Activated ${plan.name} Package for user ${booking.userId} from booking ${bookingId}`);
+                }
+            }
+        }
+    }
+    catch (err) {
+        console.warn('activateMembershipForBooking failed:', err);
+    }
+};
+const updateFullPaymentStatus = async (bookingId) => {
+    try {
+        const bookingRepo = data_source_1.AppDataSource.getRepository(Booking_1.Booking);
+        const booking = await bookingRepo.findOneBy({ id: bookingId });
+        if (booking) {
+            const paymentRepo = data_source_1.AppDataSource.getRepository(Payment_1.Payment);
+            const successfulPayments = await paymentRepo.find({
+                where: { bookingId, status: 'success' }
+            });
+            const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+            if (totalPaid >= Number(booking.totalAmount) - 1 || booking.paymentMode === 'package_credit') {
+                booking.fullPaymentReceived = true;
+                booking.status = 'confirmed';
+                await bookingRepo.save(booking);
+            }
+        }
+    }
+    catch (err) {
+        console.warn('updateFullPaymentStatus failed:', err);
+    }
+};
 const listPaymentMethods = () => [
     { id: 'razorpay', name: 'Razorpay', supported: true },
     { id: 'upi', name: 'UPI', supported: true },
@@ -93,13 +164,8 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
     payment.providerSignature = razorpaySignature;
     await repo().save(payment);
     await (0, bookings_service_1.updateBookingPaymentStatus)(payment.bookingId, 'success');
-    // Confirm full booking only after full payment (pay_now).
-    // For pay_at_venue, this is advance-only, so booking remains pending.
-    // payment.booking may not be loaded in all contexts, so read from DB.
-    const bookingForMode = await data_source_1.AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } });
-    if (bookingForMode?.paymentMode === 'pay_now') {
-        await (0, bookings_service_1.updateBookingStatus)(payment.bookingId, 'confirmed');
-    }
+    await activateMembershipForBooking(payment.bookingId);
+    await updateFullPaymentStatus(payment.bookingId);
     // Ensure booking guest details exist (frontend depends on these fields).
     // If booking-level guest fields are empty, copy from linked user record.
     try {
@@ -127,19 +193,29 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
     catch (err) {
         console.warn('Guest backfill failed', err);
     }
-    // Send confirmation email
+    // Send confirmation email + WhatsApp concurrently (best-effort)
     try {
         const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
         const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
         const user = booking?.user;
         const email = user?.email || booking?.guestEmail;
         const name = user?.fullName || `${booking?.guestFirstName ?? ''} ${booking?.guestLastName ?? ''}`.trim() || 'Guest';
-        if (email) {
-            await (0, notifications_service_1.sendEmail)(email, `Booking Confirmed – #VN${payment.bookingId} | VibeNests`, `Your booking #VN${payment.bookingId} has been confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`, buildConfirmationHtml({ bookingId: payment.bookingId, name, booking, amount: Number(payment.amount) }));
-        }
+        const emailPromise = email
+            ? (0, notifications_service_1.sendEmail)(email, `Booking Confirmed – #VN${payment.bookingId} | VibeNests`, `Your booking #VN${payment.bookingId} has been confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`, buildConfirmationHtml({ bookingId: payment.bookingId, name, booking, amount: Number(payment.amount) }))
+            : Promise.resolve();
+        const whatsappPromise = (0, whatsapp_notifications_service_1.sendPaymentSuccessWhatsApp)({
+            id: payment.bookingId,
+            guestPhone: booking?.guestPhone ?? user?.phone,
+            user: user ? { phone: user.phone, fullName: user.fullName } : null,
+            amount: Number(payment.amount),
+            guestFirstName: booking?.guestFirstName,
+            guestLastName: booking?.guestLastName,
+        });
+        // Send both in same time (best-effort)
+        await Promise.allSettled([emailPromise, whatsappPromise]);
     }
     catch (err) {
-        console.warn('Confirmation email failed', err);
+        console.warn('Payment success notification failed', err);
     }
     return payment;
 };
@@ -155,12 +231,8 @@ const verifyPayment = async (paymentId, result) => {
     await repo().save(payment);
     await (0, bookings_service_1.updateBookingPaymentStatus)(payment.bookingId, result.status === 'success' ? 'success' : 'failed');
     if (result.status === 'success') {
-        // Confirm full booking only after full payment (pay_now).
-        // For pay_at_venue, keep booking pending after advance succeeds.
-        const b = await data_source_1.AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } });
-        if (b?.paymentMode === 'pay_now') {
-            await (0, bookings_service_1.updateBookingStatus)(payment.bookingId, 'confirmed');
-        }
+        await activateMembershipForBooking(payment.bookingId);
+        await updateFullPaymentStatus(payment.bookingId);
     }
     try {
         const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
@@ -178,26 +250,39 @@ const verifyPayment = async (paymentId, result) => {
 exports.verifyPayment = verifyPayment;
 function buildConfirmationHtml(opts) {
     const { bookingId, name, booking, amount } = opts;
-    return `
-  <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#0d0d14;color:#e8e8e8;border-radius:12px;overflow:hidden">
-    <div style="background:linear-gradient(135deg,#b8972a,#e2c060);padding:28px 32px">
-      <h1 style="margin:0;font-size:22px;color:#0d0d14">Booking Confirmed ✓</h1>
-      <p style="margin:6px 0 0;color:#0d0d14;opacity:0.8">VibeNests Private Luxury Suites</p>
+    const footerYear = new Date().getFullYear();
+    const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#111;border:1px solid #eee;border-radius:10px;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:12px">
+      <img alt="VibeNests" src="https://vibenests.com/logo.png" style="height:32px;width:auto" />
+      <div>
+        <div style="font-size:16px;font-weight:700;line-height:1">Payment Received</div>
+        <div style="font-size:13px;color:#666;line-height:1;margin-top:2px">VibeNests</div>
+      </div>
     </div>
-    <div style="padding:28px 32px">
-      <p style="margin:0 0 20px">Hi <strong>${name}</strong>, your payment was successful and booking is confirmed!</p>
-      <table style="width:100%;border-collapse:collapse;font-size:14px">
-        <tr><td style="padding:6px 0;color:#888">Booking ID</td><td style="padding:6px 0;text-align:right">#VN${bookingId}</td></tr>
-        ${booking?.suiteName ? `<tr><td style="padding:6px 0;color:#888">Suite</td><td style="padding:6px 0;text-align:right">${booking.suiteName}</td></tr>` : ''}
-        ${booking?.date ? `<tr><td style="padding:6px 0;color:#888">Date</td><td style="padding:6px 0;text-align:right">${booking.date}</td></tr>` : ''}
-        ${booking?.timeSlot ? `<tr><td style="padding:6px 0;color:#888">Time</td><td style="padding:6px 0;text-align:right">${booking.timeSlot}${booking.endTimeSlot ? ' – ' + booking.endTimeSlot : ''}</td></tr>` : ''}
-        ${booking?.eventType ? `<tr><td style="padding:6px 0;color:#888">Occasion</td><td style="padding:6px 0;text-align:right">${booking.eventType}</td></tr>` : ''}
-        <tr style="border-top:1px solid #333">
-          <td style="padding:10px 0 0;font-weight:700;color:#e2c060">Amount Paid</td>
-          <td style="padding:10px 0 0;text-align:right;font-weight:700;color:#e2c060">₹${amount.toLocaleString('en-IN')}</td>
-        </tr>
-      </table>
-      <p style="margin:24px 0 0;font-size:13px;color:#888">For any queries, reply to this email or contact us.</p>
+
+    <div style="padding:18px 20px">
+      <p style="margin:0 0 14px">Hi <strong>${name}</strong>, your payment was successful and your booking is confirmed.</p>
+
+      <div style="background:#fafafa;border:1px solid #f1f1f1;border-radius:8px;padding:14px;">
+        <div style="margin:0 0 8px"><strong>Booking ID:</strong> #VN${bookingId}</div>
+        ${booking?.suiteName ? `<div style="margin:0 0 8px"><strong>Suite:</strong> ${booking.suiteName}</div>` : ''}
+        ${booking?.date ? `<div style="margin:0 0 8px"><strong>Date:</strong> ${booking.date}</div>` : ''}
+        ${booking?.timeSlot ? `<div style="margin:0 0 8px"><strong>Time:</strong> ${booking.timeSlot}${booking.endTimeSlot ? ' – ' + booking.endTimeSlot : ''}</div>` : ''}
+        ${booking?.eventType ? `<div style="margin:0 0 8px"><strong>Occasion:</strong> ${booking.eventType}</div>` : ''}
+
+        <div style="margin-top:10px;border-top:1px solid #eee;padding-top:10px;display:flex;justify-content:space-between">
+          <span style="color:#666">Amount Paid</span>
+          <span style="font-weight:700">₹${amount.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+
+      <p style="margin:16px 0 0;color:#666;font-size:13px">For any queries, reply to this email or contact us.</p>
+    </div>
+
+    <div style="padding:14px 20px;border-top:1px solid #f0f0f0;color:#999;font-size:12px;text-align:center">
+      © ${footerYear} VibeNests. All rights reserved.
     </div>
   </div>`;
+    return html;
 }

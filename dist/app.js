@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
+const path_1 = __importDefault(require("path"));
 const translation_1 = require("./middleware/translation");
 const auth_1 = __importDefault(require("./routes/auth"));
 const bookings_1 = __importDefault(require("./routes/bookings"));
@@ -16,7 +17,6 @@ const notifications_1 = __importDefault(require("./routes/notifications"));
 const reports_1 = __importDefault(require("./routes/reports"));
 const offers_1 = __importDefault(require("./routes/offers"));
 const coupons_1 = __importDefault(require("./routes/coupons"));
-const refundPolicies_1 = __importDefault(require("./routes/refundPolicies"));
 const refunds_1 = __importDefault(require("./routes/refunds"));
 const taxCharges_1 = __importDefault(require("./routes/taxCharges"));
 const bookingRules_1 = __importDefault(require("./routes/bookingRules"));
@@ -33,6 +33,7 @@ app.use(express_1.default.json());
 app.use(translation_1.languageResolverMiddleware);
 app.use(translation_1.translationMiddleware);
 app.use(express_1.default.json({ limit: '1mb' }));
+app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '../uploads')));
 // Existing routes
 app.use('/auth', auth_1.default);
 app.use('/bookings', bookings_1.default);
@@ -45,7 +46,6 @@ app.use('/reports', reports_1.default);
 // New modules
 app.use('/offers', offers_1.default);
 app.use('/coupons', coupons_1.default);
-app.use('/refund-policies', refundPolicies_1.default);
 app.use('/refunds', refunds_1.default);
 app.use('/tax-charges', taxCharges_1.default);
 app.use('/booking-rules', bookingRules_1.default);
