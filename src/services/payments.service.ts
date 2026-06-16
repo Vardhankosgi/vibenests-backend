@@ -4,6 +4,8 @@ import { updateBookingPaymentStatus, updateBookingStatus } from './bookings.serv
 import { sendEmail } from './notifications.service';
 import { sendPaymentSuccessWhatsApp } from './whatsapp-notifications.service';
 
+import { UserMembership } from '../entities/UserMembership';
+import { MembershipPlan } from '../entities/MembershipPlan';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -16,6 +18,58 @@ let razor: any = null;
 if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
   razor = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
 }
+
+
+const activateMembershipForBooking = async (bookingId: number) => {
+  try {
+    const bookingRepo = AppDataSource.getRepository('Booking');
+    const booking = await bookingRepo.findOneBy({ id: bookingId }) as any;
+    if (booking && booking.suiteId === 0 && String(booking.eventType).startsWith('package:')) {
+      const planId = Number(String(booking.eventType).split(':')[1]);
+      if (planId) {
+        const planRepo = AppDataSource.getRepository(MembershipPlan);
+        const userMembershipRepo = AppDataSource.getRepository(UserMembership);
+        const paymentRepo = AppDataSource.getRepository(Payment);
+        
+        const plan = await planRepo.findOneBy({ id: planId });
+        if (plan) {
+          // Find the successful payment for this package purchase booking
+          const payment = await paymentRepo.findOne({
+            where: { bookingId, status: 'success' },
+            order: { createdAt: 'DESC' }
+          });
+
+          // Deactivate existing active memberships of this user
+          await userMembershipRepo.update({ userId: booking.userId, status: 'active' }, { status: 'inactive' });
+
+          const now = new Date();
+          const expiry = new Date();
+          expiry.setDate(now.getDate() + plan.validityDays);
+
+          const userMembership = userMembershipRepo.create({
+            userId: booking.userId,
+            planId: plan.id,
+            planName: plan.name,
+            maxFreeBookings: plan.maxFreeBookings ?? 10,
+            bookingsUsed: 0,
+            eligibleSuites: plan.eligibleSuites || [],
+            activationDate: now,
+            expiryDate: expiry,
+            status: 'active',
+            paymentId: payment?.providerPaymentId || `MEM-PAY-BK-${bookingId}`,
+            paymentStatus: (payment?.status === 'failed' ? 'failed' : (payment?.status === 'pending' ? 'pending' : 'success')) as 'pending' | 'success' | 'failed',
+            amountPaid: payment ? Number(payment.amount) : plan.price,
+          });
+
+          await userMembershipRepo.save(userMembership);
+          console.log(`Activated ${plan.name} Package for user ${booking.userId} from booking ${bookingId}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('activateMembershipForBooking failed:', err);
+  }
+};
 
 export const listPaymentMethods = () => [
   { id: 'razorpay', name: 'Razorpay', supported: true },
@@ -101,6 +155,7 @@ export const verifyAndConfirmPayment = async (
   await repo().save(payment);
 
   await updateBookingPaymentStatus(payment.bookingId, 'success');
+  await activateMembershipForBooking(payment.bookingId);
 
   // Confirm full booking only after full payment (pay_now).
   // For pay_at_venue, this is advance-only, so booking remains pending.
@@ -189,6 +244,7 @@ export const verifyPayment = async (paymentId: number, result: { status: 'succes
   await repo().save(payment);
   await updateBookingPaymentStatus(payment.bookingId, result.status === 'success' ? 'success' : 'failed');
   if (result.status === 'success') {
+    await activateMembershipForBooking(payment.bookingId);
     // Confirm full booking only after full payment (pay_now).
     // For pay_at_venue, keep booking pending after advance succeeds.
     const b = await AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } });

@@ -7,6 +7,7 @@ describe('bookings.service', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     mockRepo.findOneBy = jest.fn();
+    mockRepo.findOne = jest.fn(async (opt: any) => ({ id: opt?.where?.id || 10 }));
     mockRepo.create = jest.fn((x: any) => x);
     mockRepo.save = jest.fn(async (x: any) => ({ id: 10, ...x }));
     jest.spyOn(AppDataSource, 'getRepository').mockReturnValue(mockRepo as any);

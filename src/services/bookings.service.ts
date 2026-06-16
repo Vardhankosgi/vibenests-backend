@@ -3,6 +3,7 @@ import { Booking } from '../entities/Booking';
 import { User } from '../entities/User';
 import { Suite } from '../entities/Suite';
 import { AddOn } from '../entities/AddOn';
+import { UserMembership } from '../entities/UserMembership';
 import { In } from 'typeorm';
 import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
@@ -36,12 +37,32 @@ export const createBooking = async (payload: {
   serviceFee?: number;
   taxes?: number;
   totalAmount?: number;
-  paymentMode?: 'pay_now' | 'pay_at_venue';
+  paymentMode?: 'pay_now' | 'pay_at_venue' | 'package_credit';
   advanceAmount?: number;
 }) => {
   const bookingRepo = repo();
-  const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
-  if (exists) throw new Error('Slot already booked');
+  if (payload.suiteId !== 0) {
+    const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
+    if (exists) throw new Error('Slot already booked');
+  }
+
+  const isPackageCredit = payload.paymentMode === 'package_credit';
+  let activeMembership: UserMembership | null = null;
+
+  if (isPackageCredit) {
+    const userMembershipRepo = AppDataSource.getRepository(UserMembership);
+    activeMembership = await userMembershipRepo.findOneBy({ userId: payload.userId, status: 'active' });
+    if (!activeMembership) {
+      throw new Error('You do not have an active package membership.');
+    }
+    if (activeMembership.bookingsUsed >= activeMembership.maxFreeBookings) {
+      throw new Error('You have used all free bookings allowed in your package.');
+    }
+    const eligibleSuites = activeMembership.eligibleSuites || [];
+    if (!eligibleSuites.includes(String(payload.suiteId))) {
+      throw new Error('This suite is not eligible for free bookings under your active package.');
+    }
+  }
 
   const orderId = await generateUniqueOrderId(bookingRepo);
   const booking = bookingRepo.create({
@@ -60,14 +81,22 @@ export const createBooking = async (payload: {
     savings: payload.savings ?? 0,
     serviceFee: payload.serviceFee ?? 0,
     taxes: payload.taxes ?? 0,
-    totalAmount: payload.totalAmount ?? 0,
+    totalAmount: isPackageCredit ? 0 : (payload.totalAmount ?? 0),
     paymentMode: payload.paymentMode ?? 'pay_now',
-    advanceAmount: payload.advanceAmount ?? 0,
-    status: 'pending',
-    paymentStatus: 'pending',
+    advanceAmount: isPackageCredit ? 0 : (payload.advanceAmount ?? 0),
+    status: isPackageCredit ? 'confirmed' : 'pending',
+    paymentStatus: isPackageCredit ? 'success' : 'pending',
   } as any);
+
   const savedBooking = await bookingRepo.save(booking) as any;
-  const finalBooking = await bookingRepo.findOne?.({ where: { id: savedBooking.id }, relations: ['user'] } as any);
+
+  if (isPackageCredit && activeMembership) {
+    const userMembershipRepo = AppDataSource.getRepository(UserMembership);
+    activeMembership.bookingsUsed += 1;
+    await userMembershipRepo.save(activeMembership);
+  }
+
+  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
   return finalBooking || savedBooking;
 };
 
@@ -172,9 +201,9 @@ export const adminCreateBooking = async (payload: {
 
   }
 
-  const finalBooking = await bookingRepo.findOne?.({ where: { id: savedBooking.id }, relations: ['user'] } as any);
-
-  // Booking confirmation: send WhatsApp (best-effort) - Email was already triggered above.
+  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+  // return finalBooking || savedBooking;
+  // WhatsApp: booking confirmed (best-effort)
   sendBookingConfirmedWhatsApp({
     id: savedBooking.id,
     guestPhone: payload.guestPhone,

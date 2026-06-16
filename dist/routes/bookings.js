@@ -10,18 +10,33 @@ const schemas_1 = require("../validation/schemas");
 const data_source_1 = require("../data-source");
 const typeorm_1 = require("typeorm");
 const AddOn_1 = require("../entities/AddOn");
+const Suite_1 = require("../entities/Suite");
 const bookings_service_1 = require("../services/bookings.service");
 const router = express_1.default.Router();
 router.use(auth_1.authenticate);
 router.get('/', async (req, res) => {
     const user = req.user;
     try {
-        if (user.role === 'admin') {
-            const all = await (0, bookings_service_1.findAllBookings)();
-            return res.json(all);
+        const bookings = user.role === 'admin' ? await (0, bookings_service_1.findAllBookings)() : await (0, bookings_service_1.findBookingsForUser)(user.id);
+        // Attach suite images to each booking by looking up related Suite.images
+        const suiteIds = Array.from(new Set(bookings.map((b) => b.suiteId).filter(Boolean)));
+        const suiteMap = new Map();
+        if (suiteIds.length) {
+            const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
+            const suites = await suiteRepo.findBy({ id: (0, typeorm_1.In)(suiteIds) });
+            for (const s of suites)
+                suiteMap.set(s.id, s);
         }
-        const list = await (0, bookings_service_1.findBookingsForUser)(user.id);
-        res.json(list);
+        const enhanced = bookings.map((b) => {
+            const suite = suiteMap.get(b.suiteId);
+            const images = suite?.images ?? [];
+            return {
+                ...b,
+                suiteImages: Array.isArray(images) ? images : [],
+                image: Array.isArray(images) && images.length ? images[0] : undefined,
+            };
+        });
+        res.json(enhanced);
     }
     catch (err) {
         res.status(500).json({ message: err.message });
@@ -35,6 +50,11 @@ router.get('/:id', async (req, res) => {
             : await (0, bookings_service_1.findBookingByIdForUser)(Number(req.params.id), user.id);
         if (!booking)
             return res.status(404).json({ message: 'Booking not found' });
+        // Attach suite images to this booking
+        const suite = await data_source_1.AppDataSource.getRepository(Suite_1.Suite).findOne({ where: { id: booking.suiteId } });
+        const images = suite?.images ?? [];
+        booking.suiteImages = Array.isArray(images) ? images : [];
+        booking.image = Array.isArray(images) && images.length ? images[0] : booking.image;
         // Build add-ons details: name + price + quantity (quantity derived from duplicate IDs in booking.addOns)
         const addOns = Array.isArray(booking.addOns) ? booking.addOns : [];
         const addOnCounts = addOns.reduce((acc, rawId) => {

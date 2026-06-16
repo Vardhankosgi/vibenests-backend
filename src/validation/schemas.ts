@@ -5,6 +5,8 @@ export const registerSchema = z.object({
   email: z.string().email(),
   phone: z.string().min(6).optional(),
   password: z.string().min(6),
+  dateOfBirth: z.string().min(8),
+  marriageDate: z.string().optional().nullable(),
 });
 
 export const loginSchema = z.object({
@@ -13,7 +15,7 @@ export const loginSchema = z.object({
 });
 
 export const bookingCreateSchema = z.object({
-  suiteId: z.number().int().positive(),
+  suiteId: z.number().int().nonnegative(),
   suiteName: z.string().optional(),
   eventType: z.string().min(2).optional(),
   addOns: z.array(z.string()).optional(),
@@ -27,7 +29,7 @@ export const bookingCreateSchema = z.object({
   serviceFee: z.number().min(0).optional(),
   taxes: z.number().min(0).optional(),
   totalAmount: z.number().min(0).optional(),
-  paymentMode: z.enum(['pay_now', 'pay_at_venue']).optional(),
+  paymentMode: z.enum(['pay_now', 'pay_at_venue', 'package_credit']).optional(),
   advanceAmount: z.number().min(0).optional(),
 });
 
@@ -46,7 +48,7 @@ export const celebrationPackageSchema = z.object({
 });
 
 export const adminBookingSchema = z.object({
-  suiteId: z.number().int().positive(),
+  suiteId: z.number().int().nonnegative(),
   eventType: z.string().min(2),
   addOns: z.array(z.number()).optional(),
   date: z.string().min(8),

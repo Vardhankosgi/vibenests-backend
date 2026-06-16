@@ -22,7 +22,8 @@ import webhookRoutes from './routes/webhook';
 import llmRoutes from './routes/llm';
 
 
-import celebrationPackagesRoutes from './routes/celebrationPackages';
+import reviewsRoutes from './routes/reviews';
+import membershipRoutes from './routes/memberships';
 
 const app = express();
 app.use(cors());
@@ -53,7 +54,8 @@ app.use('/offer-configurations', offerConfigRoutes);
 app.use('/audit-logs', auditLogsRoutes);
 app.use('/', webhookRoutes);
 app.use('/llm', llmRoutes);
-app.use('/celebration-packages', celebrationPackagesRoutes);
+app.use('/reviews', reviewsRoutes);
+app.use('/memberships', membershipRoutes);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
