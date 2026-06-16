@@ -4,6 +4,7 @@ import { User } from '../entities/User';
 import { Suite } from '../entities/Suite';
 import { AddOn } from '../entities/AddOn';
 import { UserMembership } from '../entities/UserMembership';
+import { SuiteAvailability } from '../entities/SuiteAvailability';
 import { In } from 'typeorm';
 import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
@@ -42,8 +43,26 @@ export const createBooking = async (payload: {
 }) => {
   const bookingRepo = repo();
   if (payload.suiteId !== 0) {
-    const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
+    const exists = await bookingRepo.findOne({
+      where: {
+        suiteId: payload.suiteId,
+        date: payload.date,
+        timeSlot: payload.timeSlot,
+        status: In(['confirmed', 'pending', 'completed']),
+      },
+    });
     if (exists) throw new Error('Slot already booked');
+
+    const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
+    const blocked = await availabilityRepo.findOne({
+      where: {
+        suiteId: payload.suiteId,
+        date: payload.date,
+        timeSlot: payload.timeSlot,
+        status: 'blocked',
+      },
+    });
+    if (blocked) throw new Error('Slot is blocked by administration');
   }
 
   const isPackageCredit = payload.paymentMode === 'package_credit';
@@ -120,8 +139,26 @@ export const adminCreateBooking = async (payload: {
   const suiteRepo = AppDataSource.getRepository(Suite);
   const addonRepo = AppDataSource.getRepository(AddOn);
 
-  const exists = await bookingRepo.findOneBy({ suiteId: payload.suiteId, date: payload.date, timeSlot: payload.timeSlot, status: 'confirmed' });
+  const exists = await bookingRepo.findOne({
+    where: {
+      suiteId: payload.suiteId,
+      date: payload.date,
+      timeSlot: payload.timeSlot,
+      status: In(['confirmed', 'pending', 'completed']),
+    },
+  });
   if (exists) throw new Error('Slot already booked for this date and time');
+
+  const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
+  const blocked = await availabilityRepo.findOne({
+    where: {
+      suiteId: payload.suiteId,
+      date: payload.date,
+      timeSlot: payload.timeSlot,
+      status: 'blocked',
+    },
+  });
+  if (blocked) throw new Error('Slot is blocked by administration');
 
   // ── Upsert guest user ──────────────────────────────────────────────────────
   const fullName = `${payload.guestFirstName} ${payload.guestLastName}`.trim();

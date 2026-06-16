@@ -1,5 +1,9 @@
 import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
+import { AppDataSource } from '../data-source';
+import { Booking } from '../entities/Booking';
+import { SuiteAvailability } from '../entities/SuiteAvailability';
+import { In } from 'typeorm';
 import {
   createSuite,
   findSuites,
@@ -84,6 +88,82 @@ router.delete('/:id/availability/:availabilityId', authenticate, requireRole('ad
     res.json({ message: 'Availability slot removed' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+router.get('/:id/blocked-slots', async (req, res) => {
+  try {
+    const suiteId = Number(req.params.id);
+    const date = req.query.date as string;
+    if (!date) {
+      return res.status(400).json({ message: 'Date parameter is required' });
+    }
+
+    const bookingRepo = AppDataSource.getRepository(Booking);
+    const bookings = await bookingRepo.find({
+      where: {
+        suiteId,
+        date,
+        status: In(['confirmed', 'pending', 'completed']),
+      },
+    });
+
+    const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
+    const blocks = await availabilityRepo.find({
+      where: {
+        suiteId,
+        date,
+        status: 'blocked',
+      },
+    });
+
+    const blockedSlots = new Set<string>();
+    bookings.forEach((b) => {
+      if (b.timeSlot) blockedSlots.add(b.timeSlot);
+    });
+    blocks.forEach((b) => {
+      if (b.timeSlot) blockedSlots.add(b.timeSlot);
+    });
+
+    res.json(Array.from(blockedSlots));
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/:id/availability-details', authenticate, requireRole('admin'), async (req: any, res) => {
+  try {
+    const suiteId = Number(req.params.id);
+    const date = req.query.date as string;
+    if (!date) {
+      return res.status(400).json({ message: 'Date parameter is required' });
+    }
+
+    const bookingRepo = AppDataSource.getRepository(Booking);
+    const bookings = await bookingRepo.find({
+      where: {
+        suiteId,
+        date,
+        status: In(['confirmed', 'pending', 'completed']),
+      },
+      relations: ['user'],
+    });
+
+    const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
+    const blocks = await availabilityRepo.find({
+      where: {
+        suiteId,
+        date,
+        status: 'blocked',
+      },
+    });
+
+    res.json({
+      bookings,
+      blocks,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 });
 
