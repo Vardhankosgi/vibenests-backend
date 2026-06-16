@@ -71,7 +71,7 @@ export class Booking {
   totalAmount!: number;
 
   @Column({ default: 'pay_now' })
-  paymentMode!: 'pay_now' | 'pay_at_venue';
+  paymentMode!: 'pay_now' | 'pay_at_venue' | 'package_credit';
 
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   advanceAmount!: number;
@@ -81,6 +81,9 @@ export class Booking {
 
   @Column({ default: 'pending' })
   paymentStatus!: 'pending' | 'success' | 'failed' | 'refunded';
+
+  @Column({ default: false })
+  fullPaymentReceived!: boolean;
 
   @Column({ type: 'jsonb', nullable: true, default: null })
   address!: Record<string, any> | null;

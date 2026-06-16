@@ -86,6 +86,7 @@ export const createBooking = async (payload: {
     advanceAmount: isPackageCredit ? 0 : (payload.advanceAmount ?? 0),
     status: isPackageCredit ? 'confirmed' : 'pending',
     paymentStatus: isPackageCredit ? 'success' : 'pending',
+    fullPaymentReceived: isPackageCredit ? true : false,
   } as any);
 
   const savedBooking = await bookingRepo.save(booking) as any;
@@ -157,6 +158,7 @@ export const adminCreateBooking = async (payload: {
     totalAmount: payload.totalAmount,
     status: 'confirmed',
     paymentStatus: 'success',
+    fullPaymentReceived: true,
   } as any);
   const savedBooking = await bookingRepo.save(booking) as unknown as Booking;
 

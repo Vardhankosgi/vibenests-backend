@@ -6,6 +6,8 @@ import { AppDataSource } from '../data-source';
 import { In } from 'typeorm';
 import { AddOn } from '../entities/AddOn';
 import { Suite } from '../entities/Suite';
+import { Booking } from '../entities/Booking';
+import { Payment } from '../entities/Payment';
 
 import {
   createBooking,
@@ -178,6 +180,46 @@ router.patch('/:id/cancel', async (req: any, res) => {
     res.json(booking);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/:id/pay-cash', async (req: any, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const bookingRepo = AppDataSource.getRepository(Booking);
+    const booking = await bookingRepo.findOne({ where: { id: bookingId } });
+    if (!booking) {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
+
+    if (req.user.role !== 'admin' && booking.userId !== req.user.id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    if (booking.paymentMode !== 'pay_at_venue') {
+      return res.status(400).json({ message: 'Only pay_at_venue bookings support cash balance payment.' });
+    }
+
+    booking.fullPaymentReceived = true;
+    booking.status = 'confirmed';
+    booking.paymentStatus = 'success';
+    await bookingRepo.save(booking);
+
+    // Create a Payment record of method 'cash' and status 'success'
+    const balanceAmount = Number(booking.totalAmount) - Number(booking.advanceAmount);
+    const paymentRepo = AppDataSource.getRepository(Payment);
+    const cashPayment = paymentRepo.create({
+      bookingId,
+      amount: balanceAmount,
+      method: 'cash',
+      provider: 'cash',
+      status: 'success',
+    });
+    await paymentRepo.save(cashPayment);
+
+    res.json({ success: true, booking });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
   }
 });
 

@@ -1,5 +1,6 @@
 import { AppDataSource } from '../data-source';
 import { Payment } from '../entities/Payment';
+import { Booking } from '../entities/Booking';
 import { updateBookingPaymentStatus, updateBookingStatus } from './bookings.service';
 import { sendEmail } from './notifications.service';
 import { sendPaymentSuccessWhatsApp } from './whatsapp-notifications.service';
@@ -68,6 +69,27 @@ const activateMembershipForBooking = async (bookingId: number) => {
     }
   } catch (err) {
     console.warn('activateMembershipForBooking failed:', err);
+  }
+};
+
+const updateFullPaymentStatus = async (bookingId: number) => {
+  try {
+    const bookingRepo = AppDataSource.getRepository(Booking);
+    const booking = await bookingRepo.findOneBy({ id: bookingId });
+    if (booking) {
+      const paymentRepo = AppDataSource.getRepository(Payment);
+      const successfulPayments = await paymentRepo.find({
+        where: { bookingId, status: 'success' }
+      });
+      const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+      if (totalPaid >= Number(booking.totalAmount) - 1 || booking.paymentMode === 'package_credit') {
+        booking.fullPaymentReceived = true;
+        booking.status = 'confirmed';
+        await bookingRepo.save(booking);
+      }
+    }
+  } catch (err) {
+    console.warn('updateFullPaymentStatus failed:', err);
   }
 };
 
@@ -156,14 +178,7 @@ export const verifyAndConfirmPayment = async (
 
   await updateBookingPaymentStatus(payment.bookingId, 'success');
   await activateMembershipForBooking(payment.bookingId);
-
-  // Confirm full booking only after full payment (pay_now).
-  // For pay_at_venue, this is advance-only, so booking remains pending.
-  // payment.booking may not be loaded in all contexts, so read from DB.
-  const bookingForMode = await AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } }) as any;
-  if (bookingForMode?.paymentMode === 'pay_now') {
-    await updateBookingStatus(payment.bookingId, 'confirmed');
-  }
+  await updateFullPaymentStatus(payment.bookingId);
 
   // Ensure booking guest details exist (frontend depends on these fields).
   // If booking-level guest fields are empty, copy from linked user record.
@@ -245,12 +260,7 @@ export const verifyPayment = async (paymentId: number, result: { status: 'succes
   await updateBookingPaymentStatus(payment.bookingId, result.status === 'success' ? 'success' : 'failed');
   if (result.status === 'success') {
     await activateMembershipForBooking(payment.bookingId);
-    // Confirm full booking only after full payment (pay_now).
-    // For pay_at_venue, keep booking pending after advance succeeds.
-    const b = await AppDataSource.getRepository('Booking').findOne({ where: { id: payment.bookingId } });
-    if ((b as any)?.paymentMode === 'pay_now') {
-      await updateBookingStatus(payment.bookingId, 'confirmed');
-    }
+    await updateFullPaymentStatus(payment.bookingId);
   }
   try {
     const bookingRepo = AppDataSource.getRepository('Booking');
