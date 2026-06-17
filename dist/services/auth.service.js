@@ -14,19 +14,39 @@ dotenv_1.default.config();
 const userRepo = () => data_source_1.AppDataSource.getRepository(User_1.User);
 const registerUser = async (data) => {
     const repo = userRepo();
-    const exists = await repo.findOneBy({ email: data.email });
-    if (exists)
-        throw new Error('User already exists');
+    const normalizedEmail = data.email.trim().toLowerCase();
+    const normalizedPhone = data.phone ? data.phone.replace(/\D/g, '') : undefined;
+    const existsByEmail = await repo.findOneBy({ email: normalizedEmail });
+    if (existsByEmail)
+        throw new Error('Email already registered');
+    if (normalizedPhone) {
+        const existsByPhone = await repo.findOneBy({ phone: normalizedPhone });
+        if (existsByPhone)
+            throw new Error('Phone already registered');
+    }
     const hash = await bcrypt_1.default.hash(data.password, 10);
     const user = repo.create({
         fullName: data.fullName,
-        email: data.email,
+        email: normalizedEmail,
         password: hash,
-        phone: data.phone,
+        phone: normalizedPhone,
         dateOfBirth: data.dateOfBirth,
         marriageDate: data.marriageDate,
     });
-    return repo.save(user);
+    // Quick fix: allow email/password registration to log in without extra verification step.
+    // (A full email verification flow is not implemented in this codebase yet.)
+    user.isVerified = true;
+    user.isActive = true;
+    try {
+        return await repo.save(user);
+    }
+    catch (err) {
+        // Postgres unique violation
+        if (err?.code === '23505') {
+            throw new Error('Email or phone already registered');
+        }
+        throw err;
+    }
 };
 exports.registerUser = registerUser;
 const generateAccessToken = (user) => {
