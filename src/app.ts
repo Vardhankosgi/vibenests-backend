@@ -11,7 +11,6 @@ import notificationsRoutes from './routes/notifications';
 import reportsRoutes from './routes/reports';
 import offersRoutes from './routes/offers';
 import couponsRoutes from './routes/coupons';
-import refundPoliciesRoutes from './routes/refundPolicies';
 import refundsRoutes from './routes/refunds';
 import taxChargesRoutes from './routes/taxCharges';
 import bookingRulesRoutes from './routes/bookingRules';
@@ -45,7 +44,6 @@ app.use('/reports', reportsRoutes);
 // New modules
 app.use('/offers', offersRoutes);
 app.use('/coupons', couponsRoutes);
-app.use('/refund-policies', refundPoliciesRoutes);
 app.use('/refunds', refundsRoutes);
 app.use('/tax-charges', taxChargesRoutes);
 app.use('/booking-rules', bookingRulesRoutes);

@@ -13,8 +13,8 @@ export class AuditLog {
   @Column()
   entityId!: number;
 
-  @Column({ length: 30 })
-  action!: 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'APPROVE' | 'REJECT';
+  @Column({ length: 50, nullable: true })
+  action?: 'CREATE' | 'UPDATE' | 'DELETE' | 'RESTORE' | 'APPROVE' | 'REJECT' | 'AUTO_APPROVE' | 'AUTO_REJECT' | 'AUTO_COMPLETE';
 
   @Column({ nullable: true })
   performedBy?: number;

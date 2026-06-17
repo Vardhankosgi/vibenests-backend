@@ -220,6 +220,32 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
     return payment;
 };
 exports.verifyAndConfirmPayment = verifyAndConfirmPayment;
+const sendPaymentSuccessNotifications = async (payment) => {
+    try {
+        const bookingRepo = data_source_1.AppDataSource.getRepository('Booking');
+        const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] });
+        if (!booking)
+            return;
+        const user = booking.user;
+        const email = user?.email || booking.guestEmail;
+        const name = user?.fullName || `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() || 'Guest';
+        const emailPromise = email
+            ? (0, notifications_service_1.sendEmail)(email, `Booking Confirmed – #VN${payment.bookingId} | VibeNests`, `Your booking #VN${payment.bookingId} has been confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`, buildConfirmationHtml({ bookingId: payment.bookingId, name, booking, amount: Number(payment.amount) }))
+            : Promise.resolve();
+        const whatsappPromise = (0, whatsapp_notifications_service_1.sendPaymentSuccessWhatsApp)({
+            id: payment.bookingId,
+            guestPhone: booking.guestPhone ?? user?.phone,
+            user: user ? { phone: user.phone, fullName: user.fullName } : null,
+            amount: Number(payment.amount),
+            guestFirstName: booking.guestFirstName,
+            guestLastName: booking.guestLastName,
+        });
+        await Promise.allSettled([emailPromise, whatsappPromise]);
+    }
+    catch (err) {
+        console.warn('Payment success notification failed', err);
+    }
+};
 const verifyPayment = async (paymentId, result) => {
     const payment = await repo().findOneBy({ id: paymentId });
     if (!payment)

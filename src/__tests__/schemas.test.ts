@@ -2,7 +2,7 @@ import { registerSchema, loginSchema, bookingCreateSchema } from '../validation/
 
 describe('validation schemas', () => {
   test('registerSchema - valid', () => {
-    const data = { fullName: 'Alice', email: 'alice@example.com', password: 'secret123' };
+    const data = { fullName: 'Alice', email: 'alice@example.com', password: 'secret123', dateOfBirth: '1995-05-15' };
     expect(() => registerSchema.parse(data)).not.toThrow();
   });
 

@@ -23,7 +23,7 @@ async function seedAdmin() {
 
 async function seedMembershipPlans() {
   const repo = AppDataSource.getRepository(MembershipPlan);
-  
+
   // Seed Silver
   const silverExists = await repo.findOneBy({ name: 'Silver' });
   if (!silverExists) {

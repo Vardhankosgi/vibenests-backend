@@ -116,6 +116,7 @@ export const offerConfigSchema = z.object({
 export const refundInitiateSchema = z.object({
   bookingId: z.number().int().positive(),
   policyId: z.number().int().positive().optional(),
+  reason: z.string().optional(),
 });
 export const refundProcessSchema = z.object({
   action: z.enum(['approve', 'reject']),

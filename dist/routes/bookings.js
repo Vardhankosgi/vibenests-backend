@@ -13,6 +13,7 @@ const AddOn_1 = require("../entities/AddOn");
 const Suite_1 = require("../entities/Suite");
 const Booking_1 = require("../entities/Booking");
 const Payment_1 = require("../entities/Payment");
+const RefundCalculation_1 = require("../entities/RefundCalculation");
 const bookings_service_1 = require("../services/bookings.service");
 const router = express_1.default.Router();
 router.use(auth_1.authenticate);
@@ -29,6 +30,16 @@ router.get('/', async (req, res) => {
             for (const s of suites)
                 suiteMap.set(s.id, s);
         }
+        // Attach latest refund request for each booking
+        const bookingIds = bookings.map((b) => b.id);
+        const refundRepo = data_source_1.AppDataSource.getRepository(RefundCalculation_1.RefundCalculation);
+        const refunds = bookingIds.length ? await refundRepo.find({ where: { bookingId: (0, typeorm_1.In)(bookingIds) } }) : [];
+        const refundMap = new Map();
+        for (const r of refunds) {
+            if (!refundMap.has(r.bookingId) || r.createdAt > refundMap.get(r.bookingId).createdAt) {
+                refundMap.set(r.bookingId, r);
+            }
+        }
         const enhanced = bookings.map((b) => {
             const suite = suiteMap.get(b.suiteId);
             const images = suite?.images ?? [];
@@ -36,6 +47,7 @@ router.get('/', async (req, res) => {
                 ...b,
                 suiteImages: Array.isArray(images) ? images : [],
                 image: Array.isArray(images) && images.length ? images[0] : undefined,
+                refundRequest: refundMap.get(b.id) ?? null,
             };
         });
         res.json(enhanced);
@@ -87,6 +99,13 @@ router.get('/:id', async (req, res) => {
             booking.addOnsDetails = [];
             booking.addOnsNames = [];
         }
+        // Attach latest refund request for this booking
+        const refundRepo = data_source_1.AppDataSource.getRepository(RefundCalculation_1.RefundCalculation);
+        const refundRequest = await refundRepo.findOne({
+            where: { bookingId: booking.id },
+            order: { createdAt: 'DESC' }
+        });
+        booking.refundRequest = refundRequest ?? null;
         res.json(booking);
     }
     catch (err) {

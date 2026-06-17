@@ -7,21 +7,27 @@ describe('bookings.service', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
     mockRepo.findOneBy = jest.fn();
-    mockRepo.findOne = jest.fn(async (opt: any) => ({ id: opt?.where?.id || 10 }));
+    mockRepo.findOne = jest.fn(async (opt: any) => {
+      if (opt?.where?.id) return { id: opt.where.id };
+      return null;
+    });
     mockRepo.create = jest.fn((x: any) => x);
     mockRepo.save = jest.fn(async (x: any) => ({ id: 10, ...x }));
     jest.spyOn(AppDataSource, 'getRepository').mockReturnValue(mockRepo as any);
   });
 
   test('createBooking throws if slot already confirmed', async () => {
-    mockRepo.findOneBy.mockResolvedValue({ id: 5 });
+    mockRepo.findOne.mockImplementation(async (opt: any) => {
+      if (opt?.where?.id) return { id: opt.where.id };
+      return { id: 5 }; // simulate existing booking
+    });
     await expect(
       createBooking({ userId: 1, suiteId: 1, eventType: 'Birthday', date: '2026-06-10', timeSlot: '18:00-22:00' })
     ).rejects.toThrow('Slot already booked');
   });
 
   test('createBooking saves booking when slot free', async () => {
-    mockRepo.findOneBy.mockResolvedValue(null);
+    // findOne defaults to returning null for availability checks
     const res = (await createBooking({ userId: 1, suiteId: 1, eventType: 'Birthday', date: '2026-06-10', timeSlot: '18:00-22:00' })) as any;
     expect(res.id).toBe(10);
     expect(mockRepo.save).toHaveBeenCalled();

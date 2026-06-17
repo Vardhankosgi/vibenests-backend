@@ -16,7 +16,6 @@ const notifications_1 = __importDefault(require("./routes/notifications"));
 const reports_1 = __importDefault(require("./routes/reports"));
 const offers_1 = __importDefault(require("./routes/offers"));
 const coupons_1 = __importDefault(require("./routes/coupons"));
-const refundPolicies_1 = __importDefault(require("./routes/refundPolicies"));
 const refunds_1 = __importDefault(require("./routes/refunds"));
 const taxCharges_1 = __importDefault(require("./routes/taxCharges"));
 const bookingRules_1 = __importDefault(require("./routes/bookingRules"));
@@ -45,7 +44,6 @@ app.use('/reports', reports_1.default);
 // New modules
 app.use('/offers', offers_1.default);
 app.use('/coupons', coupons_1.default);
-app.use('/refund-policies', refundPolicies_1.default);
 app.use('/refunds', refunds_1.default);
 app.use('/tax-charges', taxCharges_1.default);
 app.use('/booking-rules', bookingRules_1.default);

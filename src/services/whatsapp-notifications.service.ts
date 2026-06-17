@@ -47,7 +47,7 @@ export async function sendAccountCreatedWhatsApp(user: Pick<User, 'phone' | 'ful
 
 export async function sendBookingConfirmedWhatsApp(booking: Partial<Booking> & { guestPhone?: string | null; user?: Pick<User, 'phone' | 'fullName'> | null }) {
   const phone = booking.guestPhone ?? booking.user?.phone ?? null;
-  const name = booking.user?.fullName ?? booking.guestFirstName ? `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() : 'Guest';
+  const name = booking.user?.fullName || `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() || 'Guest';
 
   return sendAndLog(
     phone,
@@ -57,7 +57,7 @@ export async function sendBookingConfirmedWhatsApp(booking: Partial<Booking> & {
 
 export async function sendPaymentSuccessWhatsApp(booking: Partial<Booking> & { guestPhone?: string | null; user?: Pick<User, 'phone' | 'fullName'> | null; amount?: number | null }) {
   const phone = booking.guestPhone ?? booking.user?.phone ?? null;
-  const name = booking.user?.fullName ?? booking.guestFirstName ? `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() : 'Guest';
+  const name = booking.user?.fullName || `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() || 'Guest';
   const amount = booking.amount != null ? `₹${Number(booking.amount).toLocaleString('en-IN')}` : 'your payment';
 
   return sendAndLog(
@@ -68,5 +68,26 @@ export async function sendPaymentSuccessWhatsApp(booking: Partial<Booking> & { g
 
 export async function sendOfferActivatedWhatsApp(phone: string | undefined | null, offerName: string) {
   return sendAndLog(phone, `New offer is live at VibeNests: ${offerName}. Check out the latest deals today!`);
+}
+
+export async function sendRefundStatusWhatsApp(refund: any, status: string) {
+  const phone = refund.customerPhone;
+  const name = refund.customerName || 'Guest';
+  const amount = refund.refundableAmount != null ? `₹${Number(refund.refundableAmount).toLocaleString('en-IN')}` : '';
+
+  let message = '';
+  if (status === 'processing') {
+    message = `Hi ${name}! Your refund request of ${amount} for booking #VN${refund.bookingId} has been initiated and is under processing. We'll update you once completed.`;
+  } else if (status === 'approved') {
+    message = `Hi ${name}! Your refund request for booking #VN${refund.bookingId} has been approved. Refund Amount: ${amount}.`;
+  } else if (status === 'refunded') {
+    message = `Hi ${name}! Your refund of ${amount} for booking #VN${refund.bookingId} has been successfully processed. Transaction Ref: ${refund.referenceId || 'N/A'}.`;
+  } else if (status === 'rejected') {
+    message = `Hi ${name}! Your refund request for booking #VN${refund.bookingId} was not eligible. Reason: ${refund.rejectionReason || 'Cancellation policy limits.'}`;
+  } else {
+    message = `Hi ${name}! Your refund request for booking #VN${refund.bookingId} status is now: ${status}.`;
+  }
+
+  return sendAndLog(phone, message);
 }
 
