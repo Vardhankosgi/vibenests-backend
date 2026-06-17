@@ -11,6 +11,8 @@ const data_source_1 = require("../data-source");
 const typeorm_1 = require("typeorm");
 const AddOn_1 = require("../entities/AddOn");
 const Suite_1 = require("../entities/Suite");
+const Booking_1 = require("../entities/Booking");
+const Payment_1 = require("../entities/Payment");
 const bookings_service_1 = require("../services/bookings.service");
 const router = express_1.default.Router();
 router.use(auth_1.authenticate);
@@ -158,6 +160,56 @@ router.patch('/:id/cancel', async (req, res) => {
     }
     catch (err) {
         res.status(400).json({ message: err.message });
+    }
+});
+router.patch('/:id/reschedule', async (req, res) => {
+    try {
+        const bookingId = Number(req.params.id);
+        const { date, timeSlot } = req.body || {};
+        if (!date || typeof date !== 'string')
+            return res.status(400).json({ message: 'date is required' });
+        if (!timeSlot || typeof timeSlot !== 'string')
+            return res.status(400).json({ message: 'timeSlot is required' });
+        const booking = await (0, bookings_service_1.rescheduleBooking)(bookingId, req.user.id, { date, timeSlot }, req.user.role);
+        res.json(booking);
+    }
+    catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+router.post('/:id/pay-cash', async (req, res) => {
+    try {
+        const bookingId = Number(req.params.id);
+        const bookingRepo = data_source_1.AppDataSource.getRepository(Booking_1.Booking);
+        const booking = await bookingRepo.findOne({ where: { id: bookingId } });
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+        if (req.user.role !== 'admin' && booking.userId !== req.user.id) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        if (booking.paymentMode !== 'pay_at_venue') {
+            return res.status(400).json({ message: 'Only pay_at_venue bookings support cash balance payment.' });
+        }
+        booking.fullPaymentReceived = true;
+        booking.status = 'confirmed';
+        booking.paymentStatus = 'success';
+        await bookingRepo.save(booking);
+        // Create a Payment record of method 'cash' and status 'success'
+        const balanceAmount = Number(booking.totalAmount) - Number(booking.advanceAmount);
+        const paymentRepo = data_source_1.AppDataSource.getRepository(Payment_1.Payment);
+        const cashPayment = paymentRepo.create({
+            bookingId,
+            amount: balanceAmount,
+            method: 'cash',
+            provider: 'cash',
+            status: 'success',
+        });
+        await paymentRepo.save(cashPayment);
+        res.json({ success: true, booking });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
     }
 });
 router.post('/:id/meeting-link', async (req, res) => {

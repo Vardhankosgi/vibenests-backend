@@ -13,7 +13,14 @@ const router = express_1.default.Router();
 router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema), async (req, res) => {
     try {
         const user = await (0, auth_service_1.registerUser)(req.body);
-        res.status(201).json({ id: user.id, email: user.email, role: user.role, fullName: user.fullName, dateOfBirth: user.dateOfBirth ?? null });
+        res.status(201).json({
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            fullName: user.fullName,
+            dateOfBirth: user.dateOfBirth ?? null,
+            marriageDate: user.marriageDate ?? null,
+        });
     }
     catch (err) {
         res.status(400).json({ message: err.message });

@@ -28,8 +28,19 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
       return { ok: false, error: err?.message ?? err };
     }
   }
-  console.log(`EMAIL (stub) -> To: ${to} | Subject: ${subject} | Body: ${body}`);
-  return { ok: true };
+
+  const missing = [
+    !SMTP_HOST ? 'SMTP_HOST' : null,
+    !process.env.SMTP_PORT ? 'SMTP_PORT' : null,
+    !SMTP_USER ? 'SMTP_USER' : null,
+    !SMTP_PASS ? 'SMTP_PASS' : null,
+  ].filter(Boolean);
+
+  console.error(
+    `EMAIL (blocked: smtp_not_configured) -> To: ${to} | Subject: ${subject}. Missing env: ${missing.join(', ') || 'unknown'}`
+  );
+
+  return { ok: false, error: 'smtp_not_configured' };
 };
 
 export const sendBookingConfirmationEmail = async (opts: {

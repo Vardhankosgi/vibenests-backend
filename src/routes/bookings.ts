@@ -19,6 +19,7 @@ import {
   updateBookingStatus,
   cancelBooking,
   getMeetingLink,
+  rescheduleBooking,
 } from '../services/bookings.service';
 
 
@@ -182,6 +183,22 @@ router.patch('/:id/cancel', async (req: any, res) => {
     res.status(400).json({ message: err.message });
   }
 });
+
+router.patch('/:id/reschedule', async (req: any, res) => {
+  try {
+    const bookingId = Number(req.params.id);
+    const { date, timeSlot } = req.body || {};
+
+    if (!date || typeof date !== 'string') return res.status(400).json({ message: 'date is required' });
+    if (!timeSlot || typeof timeSlot !== 'string') return res.status(400).json({ message: 'timeSlot is required' });
+
+    const booking = await rescheduleBooking(bookingId, req.user.id, { date, timeSlot }, req.user.role);
+    res.json(booking);
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 
 router.post('/:id/pay-cash', async (req: any, res) => {
   try {

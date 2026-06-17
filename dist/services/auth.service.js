@@ -18,7 +18,14 @@ const registerUser = async (data) => {
     if (exists)
         throw new Error('User already exists');
     const hash = await bcrypt_1.default.hash(data.password, 10);
-    const user = repo.create({ fullName: data.fullName, email: data.email, password: hash });
+    const user = repo.create({
+        fullName: data.fullName,
+        email: data.email,
+        password: hash,
+        phone: data.phone,
+        dateOfBirth: data.dateOfBirth,
+        marriageDate: data.marriageDate,
+    });
     return repo.save(user);
 };
 exports.registerUser = registerUser;

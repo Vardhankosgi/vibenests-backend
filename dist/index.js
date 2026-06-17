@@ -30,10 +30,13 @@ async function seedMembershipPlans() {
         const silver = repo.create({
             name: 'Silver',
             price: 1999,
+            validityType: 'yearly',
             validityDays: 365,
-            discountPercent: 10,
+            maxFreeBookings: 5,
+            eligibleSuites: ['1', '2'],
+            discountPercent: 0,
             benefits: [
-                '10% discount on all suite bookings',
+                '5 free bookings on eligible suites',
                 'Priority customer support',
                 'Complimentary soft drinks during stays'
             ],
@@ -49,10 +52,13 @@ async function seedMembershipPlans() {
         const gold = repo.create({
             name: 'Gold',
             price: 4999,
+            validityType: 'yearly',
             validityDays: 365,
-            discountPercent: 20,
+            maxFreeBookings: 15,
+            eligibleSuites: ['1', '2', '3'],
+            discountPercent: 0,
             benefits: [
-                '20% discount on all suite bookings',
+                '15 free bookings on eligible suites',
                 '24/7 dedicated support desk',
                 '1 complimentary add-on per booking',
                 'Free late check-out (up to 2 hours)'
