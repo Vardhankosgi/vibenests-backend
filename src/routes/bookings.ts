@@ -198,12 +198,18 @@ router.patch('/:id/status', authenticate, requireRole('admin'), async (req: any,
 
 router.patch('/:id/cancel', async (req: any, res) => {
   try {
-    const booking = await cancelBooking(Number(req.params.id), req.user.id);
+    const { reason } = req.body || {};
+    if (typeof reason !== 'string' || !reason.trim()) {
+      return res.status(400).json({ message: 'Cancellation reason is required.' });
+    }
+
+    const booking = await cancelBooking(Number(req.params.id), req.user.id, reason);
     res.json(booking);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
 });
+
 
 router.patch('/:id/reschedule', async (req: any, res) => {
   try {

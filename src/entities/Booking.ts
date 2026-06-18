@@ -88,6 +88,10 @@ export class Booking {
   @Column({ type: 'jsonb', nullable: true, default: null })
   address!: Record<string, any> | null;
 
+  @Column({ nullable: true })
+  cancellationReason?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 }
+
