@@ -9,28 +9,53 @@ dotenv.config();
 
 const userRepo = () => AppDataSource.getRepository(User);
 
-export const registerUser = async (data: { 
-  fullName: string; 
-  email: string; 
+export const registerUser = async (data: {
+  fullName: string;
+  email: string;
   password: string;
   phone?: string;
   dateOfBirth: string;
   marriageDate?: string;
 }) => {
   const repo = userRepo();
-  const exists = await repo.findOneBy({ email: data.email });
-  if (exists) throw new Error('User already exists');
+
+  const normalizedEmail = data.email.trim().toLowerCase();
+  const normalizedPhone = data.phone ? data.phone.replace(/\D/g, '') : undefined;
+
+  const existsByEmail = await repo.findOneBy({ email: normalizedEmail });
+  if (existsByEmail) throw new Error('Email already registered');
+
+  if (normalizedPhone) {
+    const existsByPhone = await repo.findOneBy({ phone: normalizedPhone });
+    if (existsByPhone) throw new Error('Phone already registered');
+  }
+
   const hash = await bcrypt.hash(data.password, 10);
-  const user = repo.create({ 
-    fullName: data.fullName, 
-    email: data.email, 
+  const user = repo.create({
+    fullName: data.fullName,
+    email: normalizedEmail,
     password: hash,
-    phone: data.phone,
+    phone: normalizedPhone,
     dateOfBirth: data.dateOfBirth,
     marriageDate: data.marriageDate,
   });
-  return repo.save(user);
+
+  // Quick fix: allow email/password registration to log in without extra verification step.
+  // (A full email verification flow is not implemented in this codebase yet.)
+  user.isVerified = true;
+  user.isActive = true;
+
+  try {
+    return await repo.save(user);
+  } catch (err: any) {
+    // Postgres unique violation
+    if (err?.code === '23505') {
+      throw new Error('Email or phone already registered');
+    }
+    throw err;
+  }
 };
+
 
 const generateAccessToken = (user: User) => {
   const payload = { userId: user.id, role: user.role, email: user.email };

@@ -89,9 +89,12 @@ router.post('/forgot-password', async (req, res) => {
         const { email } = req.body;
         const token = await (0, password_service_1.createResetTokenForUser)(email);
         console.log('Password reset token for', email, token);
-        res.json({ message: 'Password reset requested. Check logs for token (dev).' });
+        res.json({ message: 'Password reset requested. Check your email for the reset link.' });
     }
     catch (err) {
+        if (err?.message === 'smtp_not_configured') {
+            return res.status(503).json({ message: 'Email service is not configured. Please contact support.' });
+        }
         res.status(400).json({ message: err.message });
     }
 });

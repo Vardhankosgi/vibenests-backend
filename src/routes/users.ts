@@ -60,14 +60,26 @@ router.get('/:id', authenticate, requireRole('admin'), async (req, res) => {
     const isMember = activeMembership && activeMembership.expiryDate > now;
 
     res.json({
-      id: user.id, fullName: user.fullName, email: user.email,
-      phone: user.phone, role: user.role, isActive: user.isActive,
-      isVerified: user.isVerified, createdAt: user.createdAt,
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      createdAt: user.createdAt,
+      marriageDate: user.marriageDate ?? null,
       membership: isMember ? activeMembership.planName : null,
       bookings: bookings.map(b => ({
-        id: b.id, orderId: (b as any).orderId, suite: (b as any).suite?.name ?? `Suite ${b.suiteId}`,
-        eventType: b.eventType, date: b.date, timeSlot: b.timeSlot,
-        totalAmount: b.totalAmount, status: b.status, createdAt: b.createdAt,
+        id: b.id,
+        orderId: (b as any).orderId,
+        suite: (b as any).suite?.name ?? `Suite ${b.suiteId}`,
+        eventType: b.eventType,
+        date: b.date,
+        timeSlot: b.timeSlot,
+        totalAmount: b.totalAmount,
+        status: b.status,
+        createdAt: b.createdAt,
       })),
     });
   } catch (err: any) {
@@ -115,29 +127,107 @@ router.patch('/:id/status', authenticate, requireRole('admin'), async (req, res)
   }
 });
 
-router.get('/me', authenticate, async (req: any, res) => {
+// Admin: update user details
+router.patch('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const user = await repo().findOneBy({ id: req.user.id });
+    const user = await repo().findOneBy({ id: Number(req.params.id) });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
+
+    const { fullName, phone, dateOfBirth, marriageDate, isActive } = req.body;
+
+    if (fullName !== undefined) user.fullName = String(fullName);
+    if (phone !== undefined) user.phone = phone ? String(phone).replace(/\D/g, '') : undefined;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth ? String(dateOfBirth) : undefined;
+    if (marriageDate !== undefined) user.marriageDate = marriageDate ? String(marriageDate) : undefined;
+    if (isActive !== undefined) user.isActive = Boolean(isActive);
+
+    await repo().save(user);
+
+    res.json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive,
+      isVerified: user.isVerified,
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null,
+    });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
 });
 
-router.patch('/me', authenticate, async (req: any, res) => {
+// Admin: delete user
+router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
-    const user = await repo().findOneBy({ id: req.user.id });
+    const userId = Number(req.params.id);
+    const user = await repo().findOneBy({ id: userId });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    const { fullName, phone, dateOfBirth } = req.body;
-    if (fullName) user.fullName = fullName;
-    if (phone !== undefined) user.phone = phone;
-    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
-    await repo().save(user);
-    res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
+
+    // Delete dependent refresh tokens first to avoid FK constraint violations.
+    // This keeps runtime behavior correct without requiring DB migrations.
+    await AppDataSource.transaction(async (manager) => {
+
+      const { RefreshToken } = await import('../entities/RefreshToken');
+      await manager.getRepository(RefreshToken).delete({ user: { id: userId } } as any);
+      await manager.getRepository(User).remove(user);
+    });
+
+
+    res.json({ message: 'User deleted' });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
 });
+
+
+router.get('/me', authenticate, async (req: any, res) => {
+  try {
+    const user = await repo().findOneBy({ id: req.user.id });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone ?? '',
+      role: user.role,
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+router.patch('/me', authenticate, async (req: any, res) => {
+  try {
+    const user = await repo().findOneBy({ id: req.user.id });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const { fullName, phone, dateOfBirth, marriageDate } = req.body;
+
+    if (fullName) user.fullName = fullName;
+    if (phone !== undefined) user.phone = phone;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    if (marriageDate !== undefined) user.marriageDate = marriageDate;
+
+    await repo().save(user);
+
+    res.json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone ?? '',
+      role: user.role,
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 
 export default router;

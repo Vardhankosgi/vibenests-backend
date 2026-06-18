@@ -13,17 +13,27 @@ export const createResetTokenForUser = async (email: string) => {
   const repo = AppDataSource.getRepository(User);
   const user = await repo.findOneBy({ email });
   if (!user) throw new Error('User not found');
+
   const token = jwt.sign({ userId: user.id }, RESET_SECRET(), { expiresIn: RESET_EXPIRES() as any });
 
   const resetLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/reset-password?token=${token}`;
+<<<<<<< HEAD
   const emailResult = await sendEmail(
+=======
+  const result = await sendEmail(
+>>>>>>> 8e81183cd2410bea20fec655118fd7120ce760b5
     email,
     'VibeNests — Password Reset',
     `Click the link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`
   );
 
+<<<<<<< HEAD
   if (!emailResult.ok) {
     throw new Error(`Failed to send password reset email: ${emailResult.error || 'Unknown SMTP error'}`);
+=======
+  if (!result?.ok) {
+    throw new Error(`Failed to send reset email: ${result?.error || 'unknown error'}`);
+>>>>>>> 8e81183cd2410bea20fec655118fd7120ce760b5
   }
 
   return token;
@@ -37,3 +47,4 @@ export const verifyResetToken = (token: string): number => {
     throw new Error('Invalid or expired reset token');
   }
 };
+

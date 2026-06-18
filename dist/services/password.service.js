@@ -19,7 +19,10 @@ const createResetTokenForUser = async (email) => {
         throw new Error('User not found');
     const token = jsonwebtoken_1.default.sign({ userId: user.id }, RESET_SECRET(), { expiresIn: RESET_EXPIRES() });
     const resetLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/reset-password?token=${token}`;
-    await (0, notifications_service_1.sendEmail)(email, 'VibeNests — Password Reset', `Click the link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`);
+    const result = await (0, notifications_service_1.sendEmail)(email, 'VibeNests — Password Reset', `Click the link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`);
+    if (!result?.ok) {
+        throw new Error(`Failed to send reset email: ${result?.error || 'unknown error'}`);
+    }
     return token;
 };
 exports.createResetTokenForUser = createResetTokenForUser;
