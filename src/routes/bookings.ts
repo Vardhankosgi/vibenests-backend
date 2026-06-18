@@ -259,7 +259,15 @@ router.post('/:id/pay-cash', async (req: any, res) => {
       provider: 'cash',
       status: 'success',
     });
-    await paymentRepo.save(cashPayment);
+    const savedPayment = await paymentRepo.save(cashPayment);
+
+    // Send email confirmation
+    try {
+      const { sendPaymentSuccessNotifications } = await import('../services/payments.service');
+      await sendPaymentSuccessNotifications(savedPayment);
+    } catch (err) {
+      console.warn('Failed to send cash payment confirmation email:', err);
+    }
 
     res.json({ success: true, booking });
   } catch (err: any) {

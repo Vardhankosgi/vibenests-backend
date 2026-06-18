@@ -14,14 +14,15 @@ const RESET_SECRET = () => process.env.JWT_PASSWORD_RESET_SECRET || process.env.
 const RESET_EXPIRES = () => process.env.JWT_PASSWORD_RESET_EXPIRES_IN || '1h';
 const createResetTokenForUser = async (email) => {
     const repo = data_source_1.AppDataSource.getRepository(User_1.User);
-    const user = await repo.findOneBy({ email });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await repo.findOneBy({ email: normalizedEmail });
     if (!user)
         throw new Error('User not found');
     const token = jsonwebtoken_1.default.sign({ userId: user.id }, RESET_SECRET(), { expiresIn: RESET_EXPIRES() });
     const resetLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/reset-password?token=${token}`;
-    const result = await (0, notifications_service_1.sendEmail)(email, 'VibeNests — Password Reset', `Click the link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`);
-    if (!result?.ok) {
-        throw new Error(`Failed to send reset email: ${result?.error || 'unknown error'}`);
+    const emailResult = await (0, notifications_service_1.sendEmail)(email, 'VibeNests — Password Reset', `Click the link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`);
+    if (!emailResult.ok) {
+        throw new Error(`Failed to send password reset email: ${emailResult.error || 'Unknown SMTP error'}`);
     }
     return token;
 };

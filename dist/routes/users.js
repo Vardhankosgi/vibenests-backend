@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -59,14 +92,26 @@ router.get('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async 
         const now = new Date();
         const isMember = activeMembership && activeMembership.expiryDate > now;
         res.json({
-            id: user.id, fullName: user.fullName, email: user.email,
-            phone: user.phone, role: user.role, isActive: user.isActive,
-            isVerified: user.isVerified, createdAt: user.createdAt,
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            createdAt: user.createdAt,
+            marriageDate: user.marriageDate ?? null,
             membership: isMember ? activeMembership.planName : null,
             bookings: bookings.map(b => ({
-                id: b.id, orderId: b.orderId, suite: b.suite?.name ?? `Suite ${b.suiteId}`,
-                eventType: b.eventType, date: b.date, timeSlot: b.timeSlot,
-                totalAmount: b.totalAmount, status: b.status, createdAt: b.createdAt,
+                id: b.id,
+                orderId: b.orderId,
+                suite: b.suite?.name ?? `Suite ${b.suiteId}`,
+                eventType: b.eventType,
+                date: b.date,
+                timeSlot: b.timeSlot,
+                totalAmount: b.totalAmount,
+                status: b.status,
+                createdAt: b.createdAt,
             })),
         });
     }
@@ -118,12 +163,74 @@ router.patch('/:id/status', auth_1.authenticate, (0, auth_1.requireRole)('admin'
         res.status(500).json({ message: err.message });
     }
 });
+// Admin: update user details
+router.patch('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
+    try {
+        const user = await repo().findOneBy({ id: Number(req.params.id) });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        const { fullName, phone, dateOfBirth, marriageDate, isActive } = req.body;
+        if (fullName !== undefined)
+            user.fullName = String(fullName);
+        if (phone !== undefined)
+            user.phone = phone ? String(phone).replace(/\D/g, '') : undefined;
+        if (dateOfBirth !== undefined)
+            user.dateOfBirth = dateOfBirth ? String(dateOfBirth) : undefined;
+        if (marriageDate !== undefined)
+            user.marriageDate = marriageDate ? String(marriageDate) : undefined;
+        if (isActive !== undefined)
+            user.isActive = Boolean(isActive);
+        await repo().save(user);
+        res.json({
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone,
+            role: user.role,
+            isActive: user.isActive,
+            isVerified: user.isVerified,
+            dateOfBirth: user.dateOfBirth ?? null,
+            marriageDate: user.marriageDate ?? null,
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+// Admin: delete user
+router.delete('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
+    try {
+        const userId = Number(req.params.id);
+        const user = await repo().findOneBy({ id: userId });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        // Delete dependent refresh tokens first to avoid FK constraint violations.
+        // This keeps runtime behavior correct without requiring DB migrations.
+        await data_source_1.AppDataSource.transaction(async (manager) => {
+            const { RefreshToken } = await Promise.resolve().then(() => __importStar(require('../entities/RefreshToken')));
+            await manager.getRepository(RefreshToken).delete({ user: { id: userId } });
+            await manager.getRepository(User_1.User).remove(user);
+        });
+        res.json({ message: 'User deleted' });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 router.get('/me', auth_1.authenticate, async (req, res) => {
     try {
         const user = await repo().findOneBy({ id: req.user.id });
         if (!user)
             return res.status(404).json({ message: 'User not found' });
-        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
+        res.json({
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone ?? '',
+            role: user.role,
+            dateOfBirth: user.dateOfBirth ?? null,
+            marriageDate: user.marriageDate ?? null,
+        });
     }
     catch (err) {
         res.status(500).json({ message: err.message });
@@ -134,15 +241,25 @@ router.patch('/me', auth_1.authenticate, async (req, res) => {
         const user = await repo().findOneBy({ id: req.user.id });
         if (!user)
             return res.status(404).json({ message: 'User not found' });
-        const { fullName, phone, dateOfBirth } = req.body;
+        const { fullName, phone, dateOfBirth, marriageDate } = req.body;
         if (fullName)
             user.fullName = fullName;
         if (phone !== undefined)
             user.phone = phone;
         if (dateOfBirth !== undefined)
             user.dateOfBirth = dateOfBirth;
+        if (marriageDate !== undefined)
+            user.marriageDate = marriageDate;
         await repo().save(user);
-        res.json({ id: user.id, fullName: user.fullName, email: user.email, phone: user.phone ?? '', role: user.role, dateOfBirth: user.dateOfBirth ?? null });
+        res.json({
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone ?? '',
+            role: user.role,
+            dateOfBirth: user.dateOfBirth ?? null,
+            marriageDate: user.marriageDate ?? null,
+        });
     }
     catch (err) {
         res.status(500).json({ message: err.message });

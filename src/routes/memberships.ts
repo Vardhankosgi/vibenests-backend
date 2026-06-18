@@ -4,6 +4,7 @@ import { AppDataSource } from '../data-source';
 import { MembershipPlan } from '../entities/MembershipPlan';
 import { UserMembership } from '../entities/UserMembership';
 import { User } from '../entities/User';
+import { sendPackageSubscriptionEmail } from '../services/notifications.service';
 import { z } from 'zod';
 import { validateBody } from '../middleware/validate';
 
@@ -138,6 +139,21 @@ router.post('/subscribe', authenticate, async (req: any, res: Response) => {
     });
 
     await userMembershipRepo.save(userMembership);
+
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: req.user.id });
+    if (user && user.email) {
+      sendPackageSubscriptionEmail({
+        to: user.email,
+        guestName: user.fullName || 'Guest',
+        planName: plan.name,
+        price: plan.price,
+        validityDays: plan.validityDays,
+        expiryDate: expiry.toLocaleDateString('en-IN'),
+        maxFreeBookings: plan.maxFreeBookings ?? 10,
+      }).catch((e) => console.warn('Package subscription email failed:', e?.message));
+    }
+
     res.status(201).json(userMembership);
   } catch (err: any) {
     res.status(500).json({ message: err.message });

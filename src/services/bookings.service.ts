@@ -117,6 +117,35 @@ export const createBooking = async (payload: {
   }
 
   const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+
+  if (isPackageCredit) {
+    try {
+      const suiteRepo = AppDataSource.getRepository(Suite);
+      const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+      const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+
+      const guestEmail = finalBooking?.user?.email;
+      const guestName = finalBooking?.user?.fullName || 'Guest';
+
+      if (guestEmail) {
+        sendBookingConfirmationEmail({
+          to: guestEmail,
+          guestName,
+          bookingId: savedBooking.id,
+          suiteName,
+          date: payload.date,
+          startTime: payload.timeSlot,
+          endTime: payload.endTimeSlot ?? '',
+          occasion: payload.eventType,
+          addOns: [],
+          totalAmount: 0,
+        }).catch((e) => console.warn('Package credit booking email failed:', e?.message));
+      }
+    } catch (err) {
+      console.warn('Failed to send package credit booking confirmation email:', err);
+    }
+  }
+
   return finalBooking || savedBooking;
 };
 
@@ -423,10 +452,40 @@ export const rescheduleBooking = async (
 
 
 export const updateBookingStatus = async (id: number, status: Booking['status']) => {
-  const booking = await repo().findOneBy({ id });
+  const booking = await repo().findOne({ where: { id }, relations: ['user'] });
   if (!booking) throw new Error('Booking not found');
+  const oldStatus = booking.status;
   booking.status = status;
-  return repo().save(booking);
+  const saved = await repo().save(booking);
+
+  if (status === 'confirmed' && oldStatus !== 'confirmed') {
+    try {
+      const suiteRepo = AppDataSource.getRepository(Suite);
+      const suite = await suiteRepo.findOneBy({ id: booking.suiteId });
+      const suiteName = suite?.name ?? `Suite ${booking.suiteId}`;
+      const guestEmail = (booking as any).guestEmail || booking.user?.email;
+      const guestName = booking.user?.fullName || `${(booking as any).guestFirstName ?? ''} ${(booking as any).guestLastName ?? ''}`.trim() || 'Guest';
+
+      if (guestEmail) {
+        sendBookingConfirmationEmail({
+          to: guestEmail,
+          guestName,
+          bookingId: booking.id,
+          suiteName,
+          date: booking.date,
+          startTime: booking.timeSlot,
+          endTime: booking.endTimeSlot ?? '',
+          occasion: booking.eventType,
+          addOns: [],
+          totalAmount: Number(booking.totalAmount),
+        }).catch((e) => console.warn('Booking confirmation email failed:', e?.message));
+      }
+    } catch (err) {
+      console.warn('Booking confirmation email trigger failed:', err);
+    }
+  }
+
+  return saved;
 };
 
 export const updateBookingPaymentStatus = async (id: number, paymentStatus: Booking['paymentStatus']) => {

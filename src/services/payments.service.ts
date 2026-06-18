@@ -217,7 +217,7 @@ export const verifyAndConfirmPayment = async (
   return payment;
 };
 
-const sendPaymentSuccessNotifications = async (payment: Payment) => {
+export const sendPaymentSuccessNotifications = async (payment: Payment) => {
   try {
     const bookingRepo = AppDataSource.getRepository('Booking');
     const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] }) as any;

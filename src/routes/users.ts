@@ -22,7 +22,7 @@ router.get('/', authenticate, requireRole('admin'), async (req, res) => {
     const activeMemberships = await AppDataSource.getRepository(UserMembership).find({
       where: { status: 'active' }
     });
-    
+
     const now = new Date();
     const activeMap = new Map<number, 'Silver' | 'Gold'>();
     for (const um of activeMemberships) {
