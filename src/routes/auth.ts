@@ -1,6 +1,7 @@
 import express from 'express';
 import { registerUser, loginUser, refreshAccessToken, logout, resetPasswordWithToken } from '../services/auth.service';
-import { createResetTokenForUser } from '../services/password.service';
+import { createResetTokenForUser, changePasswordForUser } from '../services/password.service';
+import { authenticate } from '../middleware/auth';
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { validateBody } from '../middleware/validate';
 import { registerSchema, loginSchema } from '../validation/schemas';
@@ -143,6 +144,19 @@ router.post('/reset-password', resetPasswordLimit, async (req, res) => {
     const { token, password } = req.body;
     await resetPasswordWithToken(token, password);
     res.json({ message: 'Password reset successful' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/change-password', authenticate, async (req: any, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    await changePasswordForUser(req.user.id, currentPassword, newPassword);
+    res.json({ message: 'Password updated successfully' });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

@@ -3,12 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createResetTokenForUser = void 0;
+exports.changePasswordForUser = exports.createResetTokenForUser = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 const data_source_1 = require("../data-source");
 const User_1 = require("../entities/User");
 const notifications_service_1 = require("./notifications.service");
 const crypto_1 = __importDefault(require("crypto"));
+const bcrypt_1 = __importDefault(require("bcrypt"));
 dotenv_1.default.config();
 const createResetTokenForUser = async (email) => {
     const repo = data_source_1.AppDataSource.getRepository(User_1.User);
@@ -52,3 +53,18 @@ const createResetTokenForUser = async (email) => {
     return rawToken;
 };
 exports.createResetTokenForUser = createResetTokenForUser;
+const changePasswordForUser = async (userId, currentPass, newPass) => {
+    const repo = data_source_1.AppDataSource.getRepository(User_1.User);
+    const user = await repo.findOneBy({ id: userId });
+    if (!user)
+        throw new Error('User not found');
+    if (!user.password)
+        throw new Error('User does not have a password set');
+    const isValid = await bcrypt_1.default.compare(currentPass, user.password);
+    if (!isValid) {
+        throw new Error('Current password is incorrect');
+    }
+    user.password = await bcrypt_1.default.hash(newPass, 10);
+    await repo.save(user);
+};
+exports.changePasswordForUser = changePasswordForUser;

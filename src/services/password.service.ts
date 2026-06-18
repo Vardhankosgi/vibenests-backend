@@ -3,6 +3,7 @@ import { AppDataSource } from '../data-source';
 import { User } from '../entities/User';
 import { sendEmail } from './notifications.service';
 import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 dotenv.config();
 
@@ -57,4 +58,19 @@ export const createResetTokenForUser = async (email: string) => {
   }
 
   return rawToken;
+};
+
+export const changePasswordForUser = async (userId: number, currentPass: string, newPass: string) => {
+  const repo = AppDataSource.getRepository(User);
+  const user = await repo.findOneBy({ id: userId });
+  if (!user) throw new Error('User not found');
+
+  if (!user.password) throw new Error('User does not have a password set');
+  const isValid = await bcrypt.compare(currentPass, user.password);
+  if (!isValid) {
+    throw new Error('Current password is incorrect');
+  }
+
+  user.password = await bcrypt.hash(newPass, 10);
+  await repo.save(user);
 };

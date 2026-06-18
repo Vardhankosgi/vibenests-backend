@@ -10,6 +10,7 @@ import { RefreshToken } from './entities/RefreshToken';
 import { Offer } from './entities/Offer';
 import { Coupon } from './entities/Coupon';
 import { LiveCelebrationSetting } from './entities/LiveCelebrationSetting';
+import { GlobalSetting } from './entities/GlobalSetting';
 import { TaxCharge } from './entities/TaxCharge';
 import { BookingRule } from './entities/BookingRule';
 import { RefundCalculation } from './entities/RefundCalculation';
@@ -38,7 +39,7 @@ export const AppDataSource = new DataSource({
   logging: false,
   entities: [
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
-    Offer, Coupon, LiveCelebrationSetting,
+    Offer, Coupon, LiveCelebrationSetting, GlobalSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
     MembershipPlan, UserMembership, Translation, Review,
     OtpCode, WhatsAppMessage, WhatsAppEvent,

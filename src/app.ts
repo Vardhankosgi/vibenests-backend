@@ -24,6 +24,7 @@ import llmRoutes from './routes/llm';
 import reviewsRoutes from './routes/reviews';
 import membershipRoutes from './routes/memberships';
 import referralsRoutes from './routes/referrals';
+import globalSettingsRoutes from './routes/globalSettings';
 
 const app = express();
 app.use(cors());
@@ -55,6 +56,7 @@ app.use('/llm', llmRoutes);
 app.use('/reviews', reviewsRoutes);
 app.use('/memberships', membershipRoutes);
 app.use('/referrals', referralsRoutes);
+app.use('/global-settings', globalSettingsRoutes);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

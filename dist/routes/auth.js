@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const auth_service_1 = require("../services/auth.service");
 const password_service_1 = require("../services/password.service");
+const auth_1 = require("../middleware/auth");
 const otp_service_1 = require("../services/otp.service");
 const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
@@ -145,6 +146,19 @@ router.post('/reset-password', resetPasswordLimit, async (req, res) => {
         const { token, password } = req.body;
         await (0, auth_service_1.resetPasswordWithToken)(token, password);
         res.json({ message: 'Password reset successful' });
+    }
+    catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+router.post('/change-password', auth_1.authenticate, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current password and new password are required' });
+        }
+        await (0, password_service_1.changePasswordForUser)(req.user.id, currentPassword, newPassword);
+        res.json({ message: 'Password updated successfully' });
     }
     catch (err) {
         res.status(400).json({ message: err.message });
