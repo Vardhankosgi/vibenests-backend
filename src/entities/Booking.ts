@@ -91,6 +91,9 @@ export class Booking {
   @Column({ nullable: true })
   cancellationReason?: string;
 
+  @Column({ nullable: true })
+  couponCode?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

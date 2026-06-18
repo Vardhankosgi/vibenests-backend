@@ -5,6 +5,7 @@ import { startOfferCronJobs } from './cron/offerSync.cron';
 import { User } from './entities/User';
 import { MembershipPlan } from './entities/MembershipPlan';
 import bcrypt from 'bcrypt';
+import { seedLegacyUsersReferralCodes } from './services/referrals.service';
 
 dotenv.config();
 
@@ -77,6 +78,7 @@ AppDataSource.initialize()
     console.log('Database connected');
     await seedAdmin();
     await seedMembershipPlans();
+    await seedLegacyUsersReferralCodes();
     startOfferCronJobs();
     app.listen(PORT, () => {
       console.log(`Server started on http://localhost:${PORT}`);

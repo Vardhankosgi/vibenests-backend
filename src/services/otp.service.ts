@@ -129,6 +129,15 @@ export const verifyOtp = async (phone: string, code: string) => {
   return {
     accessToken,
     refreshToken: refreshEntity.token,
-    user: { id: user.id, email: user.email, role: user.role, phone: user.phone, isActive: user.isActive, dateOfBirth: user.dateOfBirth ?? null },
+    user: { 
+      id: user.id, 
+      fullName: user.fullName, 
+      email: user.email, 
+      role: user.role, 
+      phone: user.phone, 
+      isActive: user.isActive, 
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null
+    },
   };
 };

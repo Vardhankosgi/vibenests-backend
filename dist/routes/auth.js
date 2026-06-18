@@ -9,6 +9,10 @@ const password_service_1 = require("../services/password.service");
 const otp_service_1 = require("../services/otp.service");
 const validate_1 = require("../middleware/validate");
 const schemas_1 = require("../validation/schemas");
+const rateLimit_1 = require("../middleware/rateLimit");
+const crypto_1 = __importDefault(require("crypto"));
+const data_source_1 = require("../data-source");
+const User_1 = require("../entities/User");
 const router = express_1.default.Router();
 router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema), async (req, res) => {
     try {
@@ -84,12 +88,29 @@ router.post('/logout', async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 });
-router.post('/forgot-password', async (req, res) => {
+// Rate limiters:
+// Forgot password: 3 requests per 15 minutes per IP
+const forgotPasswordLimit = (0, rateLimit_1.rateLimiter)(15 * 60 * 1000, 3, 'Too many password reset requests from this IP. Please try again after 15 minutes.');
+// Reset password: 5 attempts per 15 minutes per IP
+const resetPasswordLimit = (0, rateLimit_1.rateLimiter)(15 * 60 * 1000, 5, 'Too many password reset attempts. Please try again after 15 minutes.');
+router.post('/forgot-password', forgotPasswordLimit, async (req, res) => {
     try {
         const { email } = req.body;
-        const token = await (0, password_service_1.createResetTokenForUser)(email);
-        console.log('Password reset token for', email, token);
-        res.json({ message: 'Password reset requested. Check your email for the reset link.' });
+        if (!email || !email.trim()) {
+            return res.status(400).json({ message: 'Email is required' });
+        }
+        try {
+            await (0, password_service_1.createResetTokenForUser)(email);
+        }
+        catch (err) {
+            if (err?.message === 'smtp_not_configured') {
+                throw err;
+            }
+            if (err?.message !== 'User not found') {
+                console.warn('Error during forgot-password token creation:', err.message);
+            }
+        }
+        res.json({ message: 'If that email address is registered, a password reset link has been sent to it.' });
     }
     catch (err) {
         if (err?.message === 'smtp_not_configured') {
@@ -98,7 +119,28 @@ router.post('/forgot-password', async (req, res) => {
         res.status(400).json({ message: err.message });
     }
 });
-router.post('/reset-password', async (req, res) => {
+router.get('/verify-reset-token/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        if (!token)
+            return res.status(400).json({ valid: false, message: 'Token is required' });
+        const hashedToken = crypto_1.default.createHash('sha256').update(token).digest('hex');
+        const repo = data_source_1.AppDataSource.getRepository(User_1.User);
+        const user = await repo.findOneBy({ resetPasswordToken: hashedToken });
+        if (!user) {
+            return res.status(400).json({ valid: false, message: 'This password reset link is invalid or has already been used.' });
+        }
+        const now = new Date();
+        if (!user.resetPasswordExpiresAt || user.resetPasswordExpiresAt < now) {
+            return res.status(400).json({ valid: false, message: 'This password reset link has expired.' });
+        }
+        res.json({ valid: true, email: user.email });
+    }
+    catch (err) {
+        res.status(400).json({ valid: false, message: err.message });
+    }
+});
+router.post('/reset-password', resetPasswordLimit, async (req, res) => {
     try {
         const { token, password } = req.body;
         await (0, auth_service_1.resetPasswordWithToken)(token, password);

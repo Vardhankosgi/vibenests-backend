@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import * as svc from '../services/coupons.service';
+import jwt from 'jsonwebtoken';
+import { JwtPayload } from '../middleware/auth';
 
 const getIp = (req: Request) => req.ip || req.socket.remoteAddress;
 
@@ -38,7 +40,20 @@ export const deleteCoupon = async (req: Request & { user?: any }, res: Response)
 export const validateCoupon = async (req: Request, res: Response) => {
   try {
     const { code, bookingAmount } = req.body;
-    res.json(await svc.validateCoupon(code, bookingAmount, 0));
+    let userId = 0;
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+      const token = authHeader.split(' ')[1];
+      if (token) {
+        try {
+          const payload = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JwtPayload;
+          userId = payload.userId;
+        } catch (err) {
+          // Ignore invalid token for optional auth
+        }
+      }
+    }
+    res.json(await svc.validateCoupon(code, bookingAmount, userId));
   } catch (e: any) { res.status(400).json({ message: e.message }); }
 };
 

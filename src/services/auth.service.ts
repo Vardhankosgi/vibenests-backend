@@ -3,7 +3,9 @@ import { User } from '../entities/User';
 import bcrypt from 'bcrypt';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import { createRefreshToken, revokeRefreshToken, verifyRefreshToken as verifyDbRefresh } from './token.service';
+import { generateUniqueReferralCode, validateReferralCode, createReferralRelationship } from './referrals.service';
 
 dotenv.config();
 
@@ -16,6 +18,7 @@ export const registerUser = async (data: {
   phone?: string;
   dateOfBirth: string;
   marriageDate?: string;
+  referralCode?: string;
 }) => {
   const repo = userRepo();
 
@@ -30,7 +33,17 @@ export const registerUser = async (data: {
     if (existsByPhone) throw new Error('Phone already registered');
   }
 
+  // Pre-validate referral code if entered
+  if (data.referralCode) {
+    const validation = await validateReferralCode(data.referralCode);
+    if (!validation.valid) {
+      throw new Error(validation.message || 'Invalid referral code');
+    }
+  }
+
   const hash = await bcrypt.hash(data.password, 10);
+  const myReferralCode = await generateUniqueReferralCode();
+
   const user = repo.create({
     fullName: data.fullName,
     email: normalizedEmail,
@@ -38,15 +51,31 @@ export const registerUser = async (data: {
     phone: normalizedPhone,
     dateOfBirth: data.dateOfBirth,
     marriageDate: data.marriageDate,
+    referralCode: myReferralCode,
   });
 
   // Quick fix: allow email/password registration to log in without extra verification step.
-  // (A full email verification flow is not implemented in this codebase yet.)
   user.isVerified = true;
   user.isActive = true;
 
   try {
-    return await repo.save(user);
+    const savedUser = await repo.save(user);
+
+    // Save code to referral_codes table
+    const refCodeRepo = AppDataSource.getRepository('ReferralCode');
+    const refCode = refCodeRepo.create({ code: myReferralCode, userId: savedUser.id, isActive: true });
+    await refCodeRepo.save(refCode);
+
+    // If referred, create the relationship
+    if (data.referralCode) {
+      try {
+        await createReferralRelationship(data.referralCode, savedUser);
+      } catch (err: any) {
+        console.warn('Failed to link referral relationship:', err?.message);
+      }
+    }
+
+    return savedUser;
   } catch (err: any) {
     // Postgres unique violation
     if (err?.code === '23505') {
@@ -96,23 +125,50 @@ export const logout = async (refreshToken: string) => {
 };
 
 export const resetPasswordWithToken = async (token: string, newPassword: string) => {
-  try {
-    const resetSecret = process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'secret';
-    const payload = jwt.verify(token, resetSecret) as any;
-    const repo = userRepo();
-    const user = await repo.findOneBy({ id: payload.userId });
-    if (!user) throw new Error('User not found');
-    user.password = await bcrypt.hash(newPassword, 10);
-    user.isVerified = true;
-    user.isActive = true;
-    return repo.save(user);
-  } catch (err) {
-    throw new Error('Invalid or expired token');
+  if (!token) throw new Error('Token is required');
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('Password must be at least 8 characters long');
   }
+  if (!/[A-Z]/.test(newPassword)) {
+    throw new Error('Password must contain at least one uppercase letter');
+  }
+  if (!/[0-9]/.test(newPassword)) {
+    throw new Error('Password must contain at least one number');
+  }
+
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const repo = userRepo();
+  const user = await repo.findOneBy({ resetPasswordToken: hashedToken });
+
+  if (!user) {
+    throw new Error('Invalid or expired reset token');
+  }
+
+  const now = new Date();
+  if (!user.resetPasswordExpiresAt || user.resetPasswordExpiresAt < now) {
+    throw new Error('Reset token has expired');
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpiresAt = undefined;
+  user.isVerified = true;
+  user.isActive = true;
+
+  return repo.save(user);
 };
 
-export const generatePasswordResetToken = (userId: number): string => {
-  const resetSecret = process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'secret';
-  const expiresIn = (process.env.JWT_PASSWORD_RESET_EXPIRES_IN || '24h') as SignOptions['expiresIn'];
-  return jwt.sign({ userId }, resetSecret, { expiresIn });
+export const generatePasswordResetToken = async (userId: number): Promise<string> => {
+  const repo = userRepo();
+  const user = await repo.findOneBy({ id: userId });
+  if (!user) throw new Error('User not found');
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  await repo.save(user);
+
+  return rawToken;
 };

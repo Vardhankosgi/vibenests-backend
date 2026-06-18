@@ -33,6 +33,15 @@ export class User {
   @Column({ default: false })
   isActive!: boolean;
 
+  @Column({ nullable: true })
+  resetPasswordToken?: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resetPasswordExpiresAt?: Date;
+
+  @Column({ unique: true, nullable: true })
+  referralCode?: string;
+
   @OneToMany(() => Booking, (b) => b.user)
   bookings!: Booking[];
 

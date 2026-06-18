@@ -23,6 +23,7 @@ import llmRoutes from './routes/llm';
 
 import reviewsRoutes from './routes/reviews';
 import membershipRoutes from './routes/memberships';
+import referralsRoutes from './routes/referrals';
 
 const app = express();
 app.use(cors());
@@ -53,6 +54,7 @@ app.use('/', webhookRoutes);
 app.use('/llm', llmRoutes);
 app.use('/reviews', reviewsRoutes);
 app.use('/memberships', membershipRoutes);
+app.use('/referrals', referralsRoutes);
 
 // Global error handler
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

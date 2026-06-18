@@ -78,9 +78,13 @@ const updateFullPaymentStatus = async (bookingId) => {
             });
             const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
             if (totalPaid >= Number(booking.totalAmount) - 1 || booking.paymentMode === 'package_credit') {
+                const alreadyConfirmed = booking.status === 'confirmed';
                 booking.fullPaymentReceived = true;
                 booking.status = 'confirmed';
                 await bookingRepo.save(booking);
+                if (!alreadyConfirmed) {
+                    await (0, bookings_service_1.handleBookingConfirmationSideEffects)(bookingId);
+                }
             }
         }
     }

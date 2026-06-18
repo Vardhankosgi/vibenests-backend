@@ -10,6 +10,8 @@ import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
 import { sendBookingConfirmationEmail, sendPasswordSetupEmail } from './notifications.service';
 import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
+import { Coupon } from '../entities/Coupon';
+import { validateCoupon } from './coupons.service';
 
 
 const repo = () => AppDataSource.getRepository(Booking);
@@ -40,6 +42,7 @@ export const createBooking = async (payload: {
   totalAmount?: number;
   paymentMode?: 'pay_now' | 'pay_at_venue' | 'package_credit';
   advanceAmount?: number;
+  couponCode?: string;
 }) => {
   const bookingRepo = repo();
   if (payload.suiteId !== 0) {
@@ -83,6 +86,15 @@ export const createBooking = async (payload: {
     }
   }
 
+  // Verify and validate couponCode on backend if sent
+  if (payload.couponCode) {
+    try {
+      await validateCoupon(payload.couponCode, payload.totalAmount ?? 0, payload.userId);
+    } catch (err: any) {
+      throw new Error(`Coupon validation failed: ${err.message}`);
+    }
+  }
+
   const orderId = await generateUniqueOrderId(bookingRepo);
   const booking = bookingRepo.create({
     orderId,
@@ -106,6 +118,7 @@ export const createBooking = async (payload: {
     status: isPackageCredit ? 'confirmed' : 'pending',
     paymentStatus: isPackageCredit ? 'success' : 'pending',
     fullPaymentReceived: isPackageCredit ? true : false,
+    couponCode: payload.couponCode || null,
   } as any);
 
   const savedBooking = await bookingRepo.save(booking) as any;
@@ -114,6 +127,8 @@ export const createBooking = async (payload: {
     const userMembershipRepo = AppDataSource.getRepository(UserMembership);
     activeMembership.bookingsUsed += 1;
     await userMembershipRepo.save(activeMembership);
+    // Package credit bookings are confirmed instantly, run side effects
+    await handleBookingConfirmationSideEffects(savedBooking.id);
   }
 
   const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
@@ -257,7 +272,7 @@ export const adminCreateBooking = async (payload: {
   }).catch((e) => console.warn('Booking email failed:', e?.message));
 
   if (isNewUser) {
-    const resetToken = generatePasswordResetToken(guestUser.id);
+    const resetToken = await generatePasswordResetToken(guestUser.id);
     sendPasswordSetupEmail({
       to: payload.guestEmail,
       guestName: fullName,
@@ -459,6 +474,7 @@ export const updateBookingStatus = async (id: number, status: Booking['status'])
   const saved = await repo().save(booking);
 
   if (status === 'confirmed' && oldStatus !== 'confirmed') {
+    await handleBookingConfirmationSideEffects(booking.id);
     try {
       const suiteRepo = AppDataSource.getRepository(Suite);
       const suite = await suiteRepo.findOneBy({ id: booking.suiteId });
@@ -525,3 +541,37 @@ export const getMeetingLink = async (bookingId: number, requestingUserId: number
   await bookingRepo.save(booking);
   return meetingLink;
 };
+
+// Side effects triggered when a booking is confirmed/paid (like referral qualifying actions & coupon usage tracking)
+export async function handleBookingConfirmationSideEffects(bookingId: number): Promise<void> {
+  try {
+    const bookingRepo = repo();
+    const booking = await bookingRepo.findOne({ where: { id: bookingId }, relations: ['user'] });
+    if (!booking) return;
+
+    // 1. Process Referral Qualifying Action
+    if (booking.userId) {
+      try {
+        const { processReferralQualifyingAction } = require('./referrals.service');
+        await processReferralQualifyingAction(booking.userId, 'booking_confirmed', booking.id);
+      } catch (err: any) {
+        console.warn('Referral side effect failed:', err?.message);
+      }
+    }
+
+    // 2. Increment Coupon Usage
+    if (booking.couponCode) {
+      try {
+        const coupon = await AppDataSource.getRepository(Coupon).findOneBy({ code: booking.couponCode });
+        if (coupon) {
+          await AppDataSource.getRepository(Coupon).increment({ id: coupon.id }, 'usedCount', 1);
+          console.log(`Successfully incremented usedCount for coupon ${coupon.code}`);
+        }
+      } catch (err: any) {
+        console.warn('Coupon usage tracking failed:', err?.message);
+      }
+    }
+  } catch (err: any) {
+    console.warn('handleBookingConfirmationSideEffects failed:', err?.message);
+  }
+}

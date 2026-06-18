@@ -1,7 +1,7 @@
 import { AppDataSource } from '../data-source';
 import { Payment } from '../entities/Payment';
 import { Booking } from '../entities/Booking';
-import { updateBookingPaymentStatus, updateBookingStatus } from './bookings.service';
+import { updateBookingPaymentStatus, updateBookingStatus, handleBookingConfirmationSideEffects } from './bookings.service';
 import { sendEmail } from './notifications.service';
 import { sendPaymentSuccessWhatsApp } from './whatsapp-notifications.service';
 
@@ -83,9 +83,13 @@ const updateFullPaymentStatus = async (bookingId: number) => {
       });
       const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
       if (totalPaid >= Number(booking.totalAmount) - 1 || booking.paymentMode === 'package_credit') {
+        const alreadyConfirmed = booking.status === 'confirmed';
         booking.fullPaymentReceived = true;
         booking.status = 'confirmed';
         await bookingRepo.save(booking);
+        if (!alreadyConfirmed) {
+          await handleBookingConfirmationSideEffects(bookingId);
+        }
       }
     }
   } catch (err) {

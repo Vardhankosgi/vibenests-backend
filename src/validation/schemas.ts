@@ -7,6 +7,7 @@ export const registerSchema = z.object({
   password: z.string().min(6),
   dateOfBirth: z.string().min(8),
   marriageDate: z.string().optional().nullable(),
+  referralCode: z.string().optional().nullable(),
 });
 
 export const loginSchema = z.object({
