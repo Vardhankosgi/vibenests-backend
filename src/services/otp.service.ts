@@ -47,7 +47,10 @@ export const sendOtp = async (phone: string) => {
 
   // Prefer channel based on user record, keep backward-compatible fallback.
   if (existingUser?.email && !existingUser.email.endsWith('@phone.local')) {
-    await sendEmail(existingUser.email, 'VibeNests — Your OTP', message);
+    const emailResult = await sendEmail(existingUser.email, 'VibeNests — Your OTP', message);
+    if (!emailResult.ok) {
+      throw new Error(`Failed to send OTP email: ${emailResult.error || 'Unknown SMTP error'}`);
+    }
   } else {
     // If WhatsApp is configured, use it as an OTP channel.
     const waAccessToken = process.env.WHATSAPP_ACCESS_TOKEN;

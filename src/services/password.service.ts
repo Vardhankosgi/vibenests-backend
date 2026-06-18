@@ -16,11 +16,15 @@ export const createResetTokenForUser = async (email: string) => {
   const token = jwt.sign({ userId: user.id }, RESET_SECRET(), { expiresIn: RESET_EXPIRES() as any });
 
   const resetLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/reset-password?token=${token}`;
-  await sendEmail(
+  const emailResult = await sendEmail(
     email,
     'VibeNests — Password Reset',
     `Click the link to reset your password: ${resetLink}\n\nThis link expires in 1 hour.`
   );
+
+  if (!emailResult.ok) {
+    throw new Error(`Failed to send password reset email: ${emailResult.error || 'Unknown SMTP error'}`);
+  }
 
   return token;
 };
