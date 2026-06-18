@@ -24,7 +24,7 @@ router.get('/', authenticate, requireRole('admin'), async (req, res) => {
     });
 
     const now = new Date();
-    const activeMap = new Map<number, 'Silver' | 'Gold'>();
+    const activeMap = new Map<number, string>();
     for (const um of activeMemberships) {
       if (um.expiryDate > now) {
         activeMap.set(um.userId, um.planName);

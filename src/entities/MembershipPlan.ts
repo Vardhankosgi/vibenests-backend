@@ -6,7 +6,7 @@ export class MembershipPlan {
   id!: number;
 
   @Column({ length: 50, unique: true })
-  name!: 'Silver' | 'Gold';
+  name!: string;
 
   @Column('decimal', { precision: 10, scale: 2 })
   price!: number;

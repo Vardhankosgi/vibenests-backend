@@ -22,7 +22,7 @@ export class UserMembership {
   planId?: number;
 
   @Column({ length: 50 })
-  planName!: 'Silver' | 'Gold';
+  planName!: string;
 
   @Column('int', { default: 10 })
   maxFreeBookings!: number;

@@ -26,10 +26,29 @@ const generateAccessToken = (user: User) => {
 };
 
 export const sendOtp = async (phone: string) => {
-  const normalised = phone.replace(/\s+/g, '');
+  const normalised = phone.replace(/\D/g, '');
+  const matchPhone = normalised.length > 10 ? normalised.slice(-10) : normalised;
+
+  // Check user exists
+  const existingUser = await userRepo().findOne({
+    where: [
+      { phone: matchPhone },
+      { phone: normalised },
+      { phone: `+${normalised}` }
+    ]
+  });
+
+  if (!existingUser) {
+    throw new Error('This phone number is not registered. Please sign up first.');
+  }
+
+  if (!existingUser.isActive) {
+    throw new Error('Your account is not active. Please verify your account.');
+  }
 
   // invalidate old unused OTPs for this phone
   await otpRepo().update({ phone: normalised, used: false }, { used: true });
+  await otpRepo().update({ phone: matchPhone, used: false }, { used: true });
 
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + OTP_TTL_MS);
@@ -39,14 +58,8 @@ export const sendOtp = async (phone: string) => {
 
   const message = `Your VibeNests OTP is ${code}. Valid for 5 minutes. Do not share this with anyone.`;
 
-  // Check user exists and is active
-  const existingUser = await userRepo().findOneBy({ phone: normalised });
-  if (existingUser && !existingUser.isActive) {
-    throw new Error('Your account is not active. Please verify your account.');
-  }
-
   // Prefer channel based on user record, keep backward-compatible fallback.
-  if (existingUser?.email && !existingUser.email.endsWith('@phone.local')) {
+  if (existingUser.email && !existingUser.email.endsWith('@phone.local')) {
     const emailResult = await sendEmail(existingUser.email, 'VibeNests — Your OTP', message);
     if (!emailResult.ok) {
       throw new Error(`Failed to send OTP email: ${emailResult.error || 'Unknown SMTP error'}`);
@@ -65,17 +78,20 @@ export const sendOtp = async (phone: string) => {
     }
   }
 
-
   // Always return OTP in dev mode for easy testing
   const isDev = process.env.NODE_ENV !== 'production';
   return { message: 'OTP sent', ...(isDev && { otp: code }) };
 };
 
 export const verifyOtp = async (phone: string, code: string) => {
-  const normalised = phone.replace(/\s+/g, '');
+  const normalised = phone.replace(/\D/g, '');
+  const matchPhone = normalised.length > 10 ? normalised.slice(-10) : normalised;
 
   const entry = await otpRepo().findOne({
-    where: { phone: normalised, code, used: false },
+    where: [
+      { phone: matchPhone, code, used: false },
+      { phone: normalised, code, used: false }
+    ],
     order: { createdAt: 'DESC' },
   });
 
@@ -89,22 +105,23 @@ export const verifyOtp = async (phone: string, code: string) => {
   entry.used = true;
   await otpRepo().save(entry);
 
-  // Upsert user by phone
-  let user = await userRepo().findOneBy({ phone: normalised });
+  // Find user by phone
+  let user = await userRepo().findOne({
+    where: [
+      { phone: matchPhone },
+      { phone: normalised },
+      { phone: `+${normalised}` }
+    ]
+  });
+
   if (!user) {
-    user = userRepo().create({
-      fullName: normalised,
-      email: `${normalised.replace(/[^0-9]/g, '')}@phone.local`,
-      phone: normalised,
-      isVerified: true,
-    });
+    throw new Error('This phone number is not registered. Please sign up first.');
+  }
+
+  if (!user.isActive) throw new Error('Your account is not active. Please verify your account.');
+  if (!user.isVerified) {
+    user.isVerified = true;
     user = await userRepo().save(user);
-  } else {
-    if (!user.isActive) throw new Error('Your account is not active. Please verify your account.');
-    if (!user.isVerified) {
-      user.isVerified = true;
-      user = await userRepo().save(user);
-    }
   }
 
   const accessToken = generateAccessToken(user);

@@ -28,10 +28,9 @@ const reviews_1 = __importDefault(require("./routes/reviews"));
 const memberships_1 = __importDefault(require("./routes/memberships"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '50mb' }));
 app.use(translation_1.languageResolverMiddleware);
 app.use(translation_1.translationMiddleware);
-app.use(express_1.default.json({ limit: '1mb' }));
 // Existing routes
 app.use('/auth', auth_1.default);
 app.use('/bookings', bookings_1.default);
