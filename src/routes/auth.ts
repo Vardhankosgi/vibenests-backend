@@ -2,7 +2,7 @@ import express from 'express';
 import { registerUser, loginUser, refreshAccessToken, logout, resetPasswordWithToken } from '../services/auth.service';
 // import { createResetTokenForUser, verifyResetToken } from '../services/password.service';
 
-import { createResetTokenForUser, changePasswordForUser, verifyResetToken } from '../services/password.service';
+import { createResetTokenForUser, changePasswordForUser } from '../services/password.service';
 import { authenticate } from '../middleware/auth';
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { validateBody } from '../middleware/validate';
@@ -149,7 +149,7 @@ router.post('/reset-password', resetPasswordLimit, async (req, res) => {
     if (!password) return res.status(400).json({ message: 'password is required' });
 
     // Validate early so we return consistent error when token is invalid.
-    verifyResetToken(token);
+    // verifyResetToken(token);
 
     await resetPasswordWithToken(token, password);
     return res.json({ message: 'Password reset successful' });

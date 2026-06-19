@@ -8,7 +8,7 @@ import { SuiteAvailability } from '../entities/SuiteAvailability';
 import { In } from 'typeorm';
 import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
-import { sendBookingConfirmationEmail, sendPasswordSetupEmail } from './notifications.service';
+import { sendBookingConfirmationEmail, sendBookingReceivedEmail, sendPasswordSetupEmail } from './notifications.service';
 import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
 import { Coupon } from '../entities/Coupon';
 import { validateCoupon } from './coupons.service';
@@ -158,6 +158,32 @@ export const createBooking = async (payload: {
       }
     } catch (err) {
       console.warn('Failed to send package credit booking confirmation email:', err);
+    }
+  } else {
+    try {
+      const suiteRepo = AppDataSource.getRepository(Suite);
+      const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+      const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+
+      const guestEmail = finalBooking?.user?.email;
+      const guestName = finalBooking?.user?.fullName || 'Guest';
+
+      if (guestEmail) {
+        sendBookingReceivedEmail({
+          to: guestEmail,
+          guestName,
+          bookingId: savedBooking.id,
+          suiteName,
+          date: payload.date,
+          startTime: payload.timeSlot,
+          endTime: payload.endTimeSlot ?? '',
+          occasion: payload.eventType,
+          addOns: payload.addOns || [],
+          totalAmount: payload.totalAmount ?? 0,
+        }).catch((e) => console.warn('Booking received email failed:', e?.message));
+      }
+    } catch (err) {
+      console.warn('Failed to send booking received email:', err);
     }
   }
 
@@ -354,6 +380,33 @@ export const rescheduleBooking = async (
     throw new Error('Full payment must be received to reschedule');
   }
 
+  if ((booking.rescheduleCount || 0) >= 1 && requestingRole !== 'admin') {
+    throw new Error('You can only reschedule a booking once.');
+  }
+
+  if (requestingRole !== 'admin') {
+    const parts = booking.timeSlot.trim().split(/\s+/);
+    const tParts = parts[0].split(':');
+    let hh = Number(tParts[0]);
+    const mm = Number(tParts[1]) || 0;
+    const period = parts[1]?.toUpperCase();
+    if (period === 'PM' && hh !== 12) hh += 12;
+    if (period === 'AM' && hh === 12) hh = 0;
+
+    const dateParts = booking.date.split('-');
+    const year = Number(dateParts[0]);
+    const month = Number(dateParts[1]);
+    const day = Number(dateParts[2]);
+
+    const eventDate = new Date(year, month - 1, day, hh, mm, 0);
+    const now = new Date();
+    
+    const hoursBeforeEvent = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (hoursBeforeEvent < 24) {
+      throw new Error('Rescheduling is only allowed up to 24 hours before the scheduled event time.');
+    }
+  }
+
   const suite = await suiteRepo.findOneBy({ id: booking.suiteId });
   if (!suite) throw new Error('Suite not found');
 
@@ -383,6 +436,7 @@ export const rescheduleBooking = async (
   booking.date = payload.date;
   booking.timeSlot = payload.timeSlot;
   booking.endTimeSlot = endTimeSlot;
+  booking.rescheduleCount = (booking.rescheduleCount || 0) + 1;
 
   // Keep payment + status unchanged (confirmed).
   const saved = await bookingRepo.save(booking);
