@@ -1,6 +1,7 @@
 import express from 'express';
 import { registerUser, loginUser, refreshAccessToken, logout, resetPasswordWithToken } from '../services/auth.service';
-import { createResetTokenForUser } from '../services/password.service';
+import { createResetTokenForUser, verifyResetToken } from '../services/password.service';
+
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { validateBody } from '../middleware/validate';
 import { registerSchema, loginSchema } from '../validation/schemas';
@@ -82,14 +83,20 @@ router.post('/logout', async (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    const token = await createResetTokenForUser(email);
-    console.log('Password reset token for', email, token);
-    res.json({ message: 'Password reset requested. Check your email for the reset link.' });
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return res.status(400).json({ message: 'email is required' });
+    }
+
+    // Always respond with success to avoid user enumeration.
+    await createResetTokenForUser(normalizedEmail).catch(() => undefined);
+    return res.json({ message: 'Password reset requested. Check your email for the reset link.' });
   } catch (err: any) {
     if (err?.message === 'smtp_not_configured') {
       return res.status(503).json({ message: 'Email service is not configured. Please contact support.' });
     }
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message || 'Failed to request password reset' });
   }
 });
 
@@ -97,10 +104,17 @@ router.post('/forgot-password', async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, password } = req.body;
+
+    if (!token) return res.status(400).json({ message: 'token is required' });
+    if (!password) return res.status(400).json({ message: 'password is required' });
+
+    // Validate early so we return consistent error when token is invalid.
+    verifyResetToken(token);
+
     await resetPasswordWithToken(token, password);
-    res.json({ message: 'Password reset successful' });
+    return res.json({ message: 'Password reset successful' });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return res.status(400).json({ message: err.message || 'Invalid or expired token' });
   }
 });
 

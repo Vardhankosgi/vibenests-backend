@@ -399,13 +399,14 @@ const updateBookingPaymentStatus = async (id, paymentStatus) => {
     return repo().save(booking);
 };
 exports.updateBookingPaymentStatus = updateBookingPaymentStatus;
-const cancelBooking = async (id, userId) => {
+const cancelBooking = async (id, userId, reason) => {
     const booking = await repo().findOne({ where: { id, user: { id: userId } } });
     if (!booking)
         throw new Error('Booking not found');
     if (booking.status === 'cancelled')
         throw new Error('Booking already cancelled');
     booking.status = 'cancelled';
+    booking.cancellationReason = reason?.trim() ? reason.trim() : undefined;
     return repo().save(booking);
 };
 exports.cancelBooking = cancelBooking;

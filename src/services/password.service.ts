@@ -9,14 +9,20 @@ dotenv.config();
 const RESET_SECRET = () => process.env.JWT_PASSWORD_RESET_SECRET || process.env.JWT_SECRET || 'reset_secret';
 const RESET_EXPIRES = () => process.env.JWT_PASSWORD_RESET_EXPIRES_IN || '1h';
 
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
 export const createResetTokenForUser = async (email: string) => {
   const repo = AppDataSource.getRepository(User);
-  const user = await repo.findOneBy({ email });
+  const normalizedEmail = normalizeEmail(email);
+  const user = await repo.findOneBy({ email: normalizedEmail });
   if (!user) throw new Error('User not found');
 
   const token = jwt.sign({ userId: user.id }, RESET_SECRET(), { expiresIn: RESET_EXPIRES() as any });
 
-  const resetLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/reset-password?token=${token}`;
+
+  const resetLink = `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/reset-password?token=${encodeURIComponent(token)}`;
   const result = await sendEmail(
     email,
     'VibeNests — Password Reset',

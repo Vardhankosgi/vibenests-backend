@@ -174,7 +174,11 @@ router.patch('/:id/status', auth_1.authenticate, (0, auth_1.requireRole)('admin'
 });
 router.patch('/:id/cancel', async (req, res) => {
     try {
-        const booking = await (0, bookings_service_1.cancelBooking)(Number(req.params.id), req.user.id);
+        const { reason } = req.body || {};
+        if (typeof reason !== 'string' || !reason.trim()) {
+            return res.status(400).json({ message: 'Cancellation reason is required.' });
+        }
+        const booking = await (0, bookings_service_1.cancelBooking)(Number(req.params.id), req.user.id, reason);
         res.json(booking);
     }
     catch (err) {
