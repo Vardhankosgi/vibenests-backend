@@ -26,12 +26,13 @@ const webhook_1 = __importDefault(require("./routes/webhook"));
 const llm_1 = __importDefault(require("./routes/llm"));
 const reviews_1 = __importDefault(require("./routes/reviews"));
 const memberships_1 = __importDefault(require("./routes/memberships"));
+const referrals_1 = __importDefault(require("./routes/referrals"));
+const globalSettings_1 = __importDefault(require("./routes/globalSettings"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '50mb' }));
 app.use(translation_1.languageResolverMiddleware);
 app.use(translation_1.translationMiddleware);
-app.use(express_1.default.json({ limit: '1mb' }));
 // Existing routes
 app.use('/auth', auth_1.default);
 app.use('/bookings', bookings_1.default);
@@ -54,6 +55,8 @@ app.use('/', webhook_1.default);
 app.use('/llm', llm_1.default);
 app.use('/reviews', reviews_1.default);
 app.use('/memberships', memberships_1.default);
+app.use('/referrals', referrals_1.default);
+app.use('/global-settings', globalSettings_1.default);
 // Global error handler
 app.use((err, req, res, next) => {
     console.error('[ERROR]', err);

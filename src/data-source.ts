@@ -10,6 +10,7 @@ import { RefreshToken } from './entities/RefreshToken';
 import { Offer } from './entities/Offer';
 import { Coupon } from './entities/Coupon';
 import { LiveCelebrationSetting } from './entities/LiveCelebrationSetting';
+import { GlobalSetting } from './entities/GlobalSetting';
 import { TaxCharge } from './entities/TaxCharge';
 import { BookingRule } from './entities/BookingRule';
 import { RefundCalculation } from './entities/RefundCalculation';
@@ -23,6 +24,10 @@ import { MembershipPlan } from './entities/MembershipPlan';
 import { UserMembership } from './entities/UserMembership';
 import { Translation } from './entities/Translation';
 import { Review } from './entities/Review';
+import { ReferralCode } from './entities/ReferralCode';
+import { ReferralRelationship } from './entities/ReferralRelationship';
+import { ReferralReward } from './entities/ReferralReward';
+import { ReferralTransaction } from './entities/ReferralTransaction';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -34,10 +39,11 @@ export const AppDataSource = new DataSource({
   logging: false,
   entities: [
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
-    Offer, Coupon, LiveCelebrationSetting,
+    Offer, Coupon, LiveCelebrationSetting, GlobalSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
     MembershipPlan, UserMembership, Translation, Review,
     OtpCode, WhatsAppMessage, WhatsAppEvent,
+    ReferralCode, ReferralRelationship, ReferralReward, ReferralTransaction,
   ],
   migrations: [],
 });

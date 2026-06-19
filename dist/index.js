@@ -10,6 +10,7 @@ const offerSync_cron_1 = require("./cron/offerSync.cron");
 const User_1 = require("./entities/User");
 const MembershipPlan_1 = require("./entities/MembershipPlan");
 const bcrypt_1 = __importDefault(require("bcrypt"));
+const referrals_service_1 = require("./services/referrals.service");
 dotenv_1.default.config();
 const PORT = process.env.PORT || 4000;
 async function seedAdmin() {
@@ -75,6 +76,7 @@ data_source_1.AppDataSource.initialize()
     console.log('Database connected');
     await seedAdmin();
     await seedMembershipPlans();
+    await (0, referrals_service_1.seedLegacyUsersReferralCodes)();
     (0, offerSync_cron_1.startOfferCronJobs)();
     app_1.default.listen(PORT, () => {
         console.log(`Server started on http://localhost:${PORT}`);

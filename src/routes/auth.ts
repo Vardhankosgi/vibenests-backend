@@ -1,10 +1,16 @@
 import express from 'express';
 import { registerUser, loginUser, refreshAccessToken, logout, resetPasswordWithToken } from '../services/auth.service';
-import { createResetTokenForUser, verifyResetToken } from '../services/password.service';
+// import { createResetTokenForUser, verifyResetToken } from '../services/password.service';
 
+import { createResetTokenForUser, changePasswordForUser } from '../services/password.service';
+import { authenticate } from '../middleware/auth';
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { validateBody } from '../middleware/validate';
 import { registerSchema, loginSchema } from '../validation/schemas';
+import { rateLimiter } from '../middleware/rateLimit';
+import crypto from 'crypto';
+import { AppDataSource } from '../data-source';
+import { User } from '../entities/User';
 
 const router = express.Router();
 
@@ -80,9 +86,16 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-router.post('/forgot-password', async (req, res) => {
+// Rate limiters:
+// Forgot password: 3 requests per 15 minutes per IP
+const forgotPasswordLimit = rateLimiter(15 * 60 * 1000, 3, 'Too many password reset requests from this IP. Please try again after 15 minutes.');
+// Reset password: 5 attempts per 15 minutes per IP
+const resetPasswordLimit = rateLimiter(15 * 60 * 1000, 5, 'Too many password reset attempts. Please try again after 15 minutes.');
+
+router.post('/forgot-password', forgotPasswordLimit, async (req, res) => {
   try {
     const { email } = req.body;
+<<<<<<< HEAD
     const normalizedEmail = String(email || '').trim().toLowerCase();
 
     if (!normalizedEmail) {
@@ -92,6 +105,22 @@ router.post('/forgot-password', async (req, res) => {
     // Always respond with success to avoid user enumeration.
     await createResetTokenForUser(normalizedEmail).catch(() => undefined);
     return res.json({ message: 'Password reset requested. Check your email for the reset link.' });
+=======
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+    try {
+      await createResetTokenForUser(email);
+    } catch (err: any) {
+      if (err?.message === 'smtp_not_configured') {
+        throw err;
+      }
+      if (err?.message !== 'User not found') {
+        console.warn('Error during forgot-password token creation:', err.message);
+      }
+    }
+    res.json({ message: 'If that email address is registered, a password reset link has been sent to it.' });
+>>>>>>> 5ec5611d3d11a56de7742b3007f9b0de89005147
   } catch (err: any) {
     if (err?.message === 'smtp_not_configured') {
       return res.status(503).json({ message: 'Email service is not configured. Please contact support.' });
@@ -100,8 +129,31 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+router.get('/verify-reset-token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    if (!token) return res.status(400).json({ valid: false, message: 'Token is required' });
 
-router.post('/reset-password', async (req, res) => {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const repo = AppDataSource.getRepository(User);
+    const user = await repo.findOneBy({ resetPasswordToken: hashedToken });
+
+    if (!user) {
+      return res.status(400).json({ valid: false, message: 'This password reset link is invalid or has already been used.' });
+    }
+
+    const now = new Date();
+    if (!user.resetPasswordExpiresAt || user.resetPasswordExpiresAt < now) {
+      return res.status(400).json({ valid: false, message: 'This password reset link has expired.' });
+    }
+
+    res.json({ valid: true, email: user.email });
+  } catch (err: any) {
+    res.status(400).json({ valid: false, message: err.message });
+  }
+});
+
+router.post('/reset-password', resetPasswordLimit, async (req, res) => {
   try {
     const { token, password } = req.body;
 
@@ -115,6 +167,19 @@ router.post('/reset-password', async (req, res) => {
     return res.json({ message: 'Password reset successful' });
   } catch (err: any) {
     return res.status(400).json({ message: err.message || 'Invalid or expired token' });
+  }
+});
+
+router.post('/change-password', authenticate, async (req: any, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    await changePasswordForUser(req.user.id, currentPassword, newPassword);
+    res.json({ message: 'Password updated successfully' });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
   }
 });
 

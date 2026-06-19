@@ -564,7 +564,7 @@ export const rejectRefund = async (refundId: number, adminId: number, rejectionR
   const refundRepo = AppDataSource.getRepository(RefundCalculation);
   const refund = await refundRepo.findOne({ where: { id: refundId } });
   if (!refund) throw new Error('Refund request not found');
-  if (!['pending', 'under_review'].includes(refund.status)) throw new Error('Cannot reject from current status');
+  if (!['pending', 'under_review', 'approved', 'processing'].includes(refund.status)) throw new Error('Cannot reject from current status');
 
   const previousData = { ...refund };
   refund.status = 'rejected';
@@ -575,6 +575,12 @@ export const rejectRefund = async (refundId: number, adminId: number, rejectionR
   refund.processedAt = new Date();
 
   const updated = await refundRepo.save(refund);
+
+  if (['approved', 'processing'].includes(previousData.status)) {
+    await AppDataSource.getRepository(Booking).update(refund.bookingId, { paymentStatus: 'success' });
+    await AppDataSource.getRepository(Payment).update({ bookingId: refund.bookingId }, { status: 'success' });
+  }
+
   await auditRepo.log({ entityType: 'RefundCalculation', entityId: refundId, action: 'REJECT', performedBy: adminId, performedByRole: 'admin', previousData, newData: updated as any, note: rejectionReason, ipAddress: ip });
   await notifyRefundStatus(updated, 'rejected');
   return updated;

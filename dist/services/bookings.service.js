@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMeetingLink = exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.rescheduleBooking = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.adminCreateBooking = exports.createBooking = void 0;
+exports.handleBookingConfirmationSideEffects = handleBookingConfirmationSideEffects;
 const data_source_1 = require("../data-source");
 const Booking_1 = require("../entities/Booking");
 const User_1 = require("../entities/User");
@@ -46,6 +47,8 @@ const crypto_1 = require("crypto");
 const auth_service_1 = require("./auth.service");
 const notifications_service_1 = require("./notifications.service");
 const whatsapp_notifications_service_1 = require("./whatsapp-notifications.service");
+const Coupon_1 = require("../entities/Coupon");
+const coupons_service_1 = require("./coupons.service");
 const repo = () => data_source_1.AppDataSource.getRepository(Booking_1.Booking);
 const generateUniqueOrderId = async (bookingRepo) => {
     while (true) {
@@ -96,6 +99,15 @@ const createBooking = async (payload) => {
             throw new Error('This suite is not eligible for free bookings under your active package.');
         }
     }
+    // Verify and validate couponCode on backend if sent
+    if (payload.couponCode) {
+        try {
+            await (0, coupons_service_1.validateCoupon)(payload.couponCode, payload.totalAmount ?? 0, payload.userId);
+        }
+        catch (err) {
+            throw new Error(`Coupon validation failed: ${err.message}`);
+        }
+    }
     const orderId = await generateUniqueOrderId(bookingRepo);
     const booking = bookingRepo.create({
         orderId,
@@ -119,14 +131,43 @@ const createBooking = async (payload) => {
         status: isPackageCredit ? 'confirmed' : 'pending',
         paymentStatus: isPackageCredit ? 'success' : 'pending',
         fullPaymentReceived: isPackageCredit ? true : false,
+        couponCode: payload.couponCode || null,
     });
     const savedBooking = await bookingRepo.save(booking);
     if (isPackageCredit && activeMembership) {
         const userMembershipRepo = data_source_1.AppDataSource.getRepository(UserMembership_1.UserMembership);
         activeMembership.bookingsUsed += 1;
         await userMembershipRepo.save(activeMembership);
+        // Package credit bookings are confirmed instantly, run side effects
+        await handleBookingConfirmationSideEffects(savedBooking.id);
     }
     const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+    if (isPackageCredit) {
+        try {
+            const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
+            const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+            const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+            const guestEmail = finalBooking?.user?.email;
+            const guestName = finalBooking?.user?.fullName || 'Guest';
+            if (guestEmail) {
+                (0, notifications_service_1.sendBookingConfirmationEmail)({
+                    to: guestEmail,
+                    guestName,
+                    bookingId: savedBooking.id,
+                    suiteName,
+                    date: payload.date,
+                    startTime: payload.timeSlot,
+                    endTime: payload.endTimeSlot ?? '',
+                    occasion: payload.eventType,
+                    addOns: [],
+                    totalAmount: 0,
+                }).catch((e) => console.warn('Package credit booking email failed:', e?.message));
+            }
+        }
+        catch (err) {
+            console.warn('Failed to send package credit booking confirmation email:', err);
+        }
+    }
     return finalBooking || savedBooking;
 };
 exports.createBooking = createBooking;
@@ -218,7 +259,7 @@ const adminCreateBooking = async (payload) => {
         totalAmount: payload.totalAmount,
     }).catch((e) => console.warn('Booking email failed:', e?.message));
     if (isNewUser) {
-        const resetToken = (0, auth_service_1.generatePasswordResetToken)(guestUser.id);
+        const resetToken = await (0, auth_service_1.generatePasswordResetToken)(guestUser.id);
         (0, notifications_service_1.sendPasswordSetupEmail)({
             to: payload.guestEmail,
             guestName: fullName,
@@ -384,11 +425,40 @@ const rescheduleBooking = async (bookingId, userId, payload, requestingRole) => 
 };
 exports.rescheduleBooking = rescheduleBooking;
 const updateBookingStatus = async (id, status) => {
-    const booking = await repo().findOneBy({ id });
+    const booking = await repo().findOne({ where: { id }, relations: ['user'] });
     if (!booking)
         throw new Error('Booking not found');
+    const oldStatus = booking.status;
     booking.status = status;
-    return repo().save(booking);
+    const saved = await repo().save(booking);
+    if (status === 'confirmed' && oldStatus !== 'confirmed') {
+        await handleBookingConfirmationSideEffects(booking.id);
+        try {
+            const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
+            const suite = await suiteRepo.findOneBy({ id: booking.suiteId });
+            const suiteName = suite?.name ?? `Suite ${booking.suiteId}`;
+            const guestEmail = booking.guestEmail || booking.user?.email;
+            const guestName = booking.user?.fullName || `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim() || 'Guest';
+            if (guestEmail) {
+                (0, notifications_service_1.sendBookingConfirmationEmail)({
+                    to: guestEmail,
+                    guestName,
+                    bookingId: booking.id,
+                    suiteName,
+                    date: booking.date,
+                    startTime: booking.timeSlot,
+                    endTime: booking.endTimeSlot ?? '',
+                    occasion: booking.eventType,
+                    addOns: [],
+                    totalAmount: Number(booking.totalAmount),
+                }).catch((e) => console.warn('Booking confirmation email failed:', e?.message));
+            }
+        }
+        catch (err) {
+            console.warn('Booking confirmation email trigger failed:', err);
+        }
+    }
+    return saved;
 };
 exports.updateBookingStatus = updateBookingStatus;
 const updateBookingPaymentStatus = async (id, paymentStatus) => {
@@ -429,3 +499,38 @@ const getMeetingLink = async (bookingId, requestingUserId, requestingRole) => {
     return meetingLink;
 };
 exports.getMeetingLink = getMeetingLink;
+// Side effects triggered when a booking is confirmed/paid (like referral qualifying actions & coupon usage tracking)
+async function handleBookingConfirmationSideEffects(bookingId) {
+    try {
+        const bookingRepo = repo();
+        const booking = await bookingRepo.findOne({ where: { id: bookingId }, relations: ['user'] });
+        if (!booking)
+            return;
+        // 1. Process Referral Qualifying Action
+        if (booking.userId) {
+            try {
+                const { processReferralQualifyingAction } = require('./referrals.service');
+                await processReferralQualifyingAction(booking.userId, 'booking_confirmed', booking.id);
+            }
+            catch (err) {
+                console.warn('Referral side effect failed:', err?.message);
+            }
+        }
+        // 2. Increment Coupon Usage
+        if (booking.couponCode) {
+            try {
+                const coupon = await data_source_1.AppDataSource.getRepository(Coupon_1.Coupon).findOneBy({ code: booking.couponCode });
+                if (coupon) {
+                    await data_source_1.AppDataSource.getRepository(Coupon_1.Coupon).increment({ id: coupon.id }, 'usedCount', 1);
+                    console.log(`Successfully incremented usedCount for coupon ${coupon.code}`);
+                }
+            }
+            catch (err) {
+                console.warn('Coupon usage tracking failed:', err?.message);
+            }
+        }
+    }
+    catch (err) {
+        console.warn('handleBookingConfirmationSideEffects failed:', err?.message);
+    }
+}

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyPayment = exports.verifyAndConfirmPayment = exports.listMyPayments = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
+exports.verifyPayment = exports.sendPaymentSuccessNotifications = exports.verifyAndConfirmPayment = exports.listMyPayments = exports.listPayments = exports.findPaymentById = exports.createPaymentIntent = exports.createRazorpayOrder = exports.listPaymentMethods = void 0;
 const data_source_1 = require("../data-source");
 const Payment_1 = require("../entities/Payment");
 const Booking_1 = require("../entities/Booking");
@@ -78,9 +78,13 @@ const updateFullPaymentStatus = async (bookingId) => {
             });
             const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
             if (totalPaid >= Number(booking.totalAmount) - 1 || booking.paymentMode === 'package_credit') {
+                const alreadyConfirmed = booking.status === 'confirmed';
                 booking.fullPaymentReceived = true;
                 booking.status = 'confirmed';
                 await bookingRepo.save(booking);
+                if (!alreadyConfirmed) {
+                    await (0, bookings_service_1.handleBookingConfirmationSideEffects)(bookingId);
+                }
             }
         }
     }
@@ -194,7 +198,7 @@ const verifyAndConfirmPayment = async (paymentId, razorpayOrderId, razorpayPayme
         console.warn('Guest backfill failed', err);
     }
     // Send confirmation email + WhatsApp concurrently (best-effort)
-    await sendPaymentSuccessNotifications(payment);
+    await (0, exports.sendPaymentSuccessNotifications)(payment);
     return payment;
 };
 exports.verifyAndConfirmPayment = verifyAndConfirmPayment;
@@ -224,6 +228,7 @@ const sendPaymentSuccessNotifications = async (payment) => {
         console.warn('Payment success notification failed', err);
     }
 };
+exports.sendPaymentSuccessNotifications = sendPaymentSuccessNotifications;
 const verifyPayment = async (paymentId, result) => {
     const payment = await repo().findOneBy({ id: paymentId });
     if (!payment)
@@ -237,7 +242,7 @@ const verifyPayment = async (paymentId, result) => {
     if (result.status === 'success') {
         await activateMembershipForBooking(payment.bookingId);
         await updateFullPaymentStatus(payment.bookingId);
-        await sendPaymentSuccessNotifications(payment);
+        await (0, exports.sendPaymentSuccessNotifications)(payment);
     }
     return payment;
 };

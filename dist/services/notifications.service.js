@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.smtpHealthCheck = exports.sendWhatsApp = exports.sendSms = exports.sendPasswordSetupEmail = exports.sendBookingConfirmationEmail = exports.sendEmail = void 0;
+exports.smtpHealthCheck = exports.sendWhatsApp = exports.sendSms = exports.sendPackageSubscriptionEmail = exports.sendPasswordSetupEmail = exports.sendBookingConfirmationEmail = exports.sendEmail = void 0;
 const dotenv_1 = __importDefault(require("dotenv"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 dotenv_1.default.config();
@@ -116,6 +116,40 @@ const sendPasswordSetupEmail = async (opts) => {
     return (0, exports.sendEmail)(opts.to, 'Set up your VibeNests account', `Set your password: ${link}`, html);
 };
 exports.sendPasswordSetupEmail = sendPasswordSetupEmail;
+const sendPackageSubscriptionEmail = async (opts) => {
+    const footerYear = new Date().getFullYear();
+    const html = `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;color:#111;border:1px solid #eee;border-radius:10px;overflow:hidden">
+    <div style="padding:16px 20px;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;gap:12px">
+      <img alt="VibeNests" src="https://vibenests.com/logo.png" style="height:32px;width:auto" />
+      <div>
+        <div style="font-size:16px;font-weight:700;line-height:1">Package Subscribed</div>
+        <div style="font-size:13px;color:#666;line-height:1;margin-top:2px">VibeNests</div>
+      </div>
+    </div>
+
+    <div style="padding:18px 20px">
+      <p style="margin:0 0 14px">Hi <strong>${opts.guestName}</strong>, thank you for subscribing to VibeNests package.</p>
+      <p style="margin:0 0 18px;color:#666;font-size:14px">Your membership details are as follows:</p>
+
+      <div style="background:#fafafa;border:1px solid #f1f1f1;border-radius:8px;padding:14px;">
+        <div style="margin:0 0 8px"><strong>Package Name:</strong> ${opts.planName}</div>
+        <div style="margin:0 0 8px"><strong>Price:</strong> ₹${opts.price.toLocaleString('en-IN')}</div>
+        <div style="margin:0 0 8px"><strong>Validity:</strong> ${opts.validityDays} Days</div>
+        <div style="margin:0 0 8px"><strong>Expiry Date:</strong> ${opts.expiryDate}</div>
+        <div style="margin:0 0 8px"><strong>Max Free Bookings:</strong> ${opts.maxFreeBookings} Bookings</div>
+      </div>
+
+      <p style="margin:16px 0 0;color:#666;font-size:13px">You can now book eligible suites using your package credits on VibeNests.</p>
+    </div>
+
+    <div style="padding:14px 20px;border-top:1px solid #f0f0f0;color:#999;font-size:12px;text-align:center">
+      © ${footerYear} VibeNests. All rights reserved.
+    </div>
+  </div>`;
+    return (0, exports.sendEmail)(opts.to, `Package Subscribed successfully – ${opts.planName} | VibeNests`, `Your subscription to ${opts.planName} package is active. Expiry: ${opts.expiryDate}.`, html);
+};
+exports.sendPackageSubscriptionEmail = sendPackageSubscriptionEmail;
 const sendSms = async (phone, message) => {
     // SMS provider removed; keep a console fallback. Consider integrating an SMS gateway.
     console.log(`SMS (stub) -> To: ${phone} | Message: ${message}`);

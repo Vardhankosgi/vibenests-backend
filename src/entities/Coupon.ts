@@ -50,6 +50,9 @@ export class Coupon {
   @Column({ nullable: true })
   createdBy?: number;
 
+  @Column({ nullable: true })
+  assignedToUserId?: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 

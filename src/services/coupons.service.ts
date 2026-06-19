@@ -50,6 +50,8 @@ export const validateCoupon = async (code: string, bookingAmount: number, userId
   if (coupon.status !== 'active') throw new Error('Coupon is not active');
   if (coupon.expiresAt && coupon.expiresAt < new Date()) throw new Error('Coupon has expired');
   if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) throw new Error('Coupon usage limit reached');
+  if (coupon.assignedToUserId && coupon.assignedToUserId !== userId)
+    throw new Error('This coupon is exclusive to another user.');
   if (coupon.minBookingAmount && bookingAmount < Number(coupon.minBookingAmount))
     throw new Error(`Minimum booking amount is ₹${coupon.minBookingAmount}`);
 

@@ -22,9 +22,9 @@ router.get('/', authenticate, requireRole('admin'), async (req, res) => {
     const activeMemberships = await AppDataSource.getRepository(UserMembership).find({
       where: { status: 'active' }
     });
-    
+
     const now = new Date();
-    const activeMap = new Map<number, 'Silver' | 'Gold'>();
+    const activeMap = new Map<number, string>();
     for (const um of activeMemberships) {
       if (um.expiryDate > now) {
         activeMap.set(um.userId, um.planName);
@@ -95,7 +95,7 @@ router.post('/', authenticate, requireRole('admin'), async (req, res) => {
     if (exists) return res.status(400).json({ message: 'User with this email already exists' });
     const user = repo().create({ fullName, email, phone, role: 'customer', isActive: false, isVerified: false });
     const saved = await repo().save(user);
-    const token = generatePasswordResetToken(saved.id);
+    const token = await generatePasswordResetToken(saved.id);
     await sendPasswordSetupEmail({ to: email, guestName: fullName, resetToken: token });
     res.status(201).json({ id: saved.id, fullName: saved.fullName, email: saved.email, phone: saved.phone, role: saved.role, isActive: saved.isActive, isVerified: saved.isVerified, createdAt: saved.createdAt, bookingCount: 0 });
   } catch (err: any) {
@@ -107,7 +107,7 @@ router.post('/:id/resend-setup', authenticate, requireRole('admin'), async (req,
   try {
     const user = await repo().findOneBy({ id: Number(req.params.id) });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    const token = generatePasswordResetToken(user.id);
+    const token = await generatePasswordResetToken(user.id);
     await sendPasswordSetupEmail({ to: user.email, guestName: user.fullName, resetToken: token });
     res.json({ message: 'Setup email resent' });
   } catch (err: any) {
