@@ -512,8 +512,12 @@ export const updateBookingPaymentStatus = async (id: number, paymentStatus: Book
 };
 
 
-export const cancelBooking = async (id: number, userId: number, reason?: string) => {
-  const booking = await repo().findOne({ where: { id, user: { id: userId } } as any });
+export const cancelBooking = async (id: number, userId: number, reason?: string, requestingRole?: string) => {
+  let whereClause: any = { id, user: { id: userId } };
+  if (requestingRole === 'admin') {
+    whereClause = { id };
+  }
+  const booking = await repo().findOne({ where: whereClause });
   if (!booking) throw new Error('Booking not found');
   if (booking.status === 'cancelled') throw new Error('Booking already cancelled');
 

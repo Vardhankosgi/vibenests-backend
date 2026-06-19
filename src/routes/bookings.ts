@@ -203,7 +203,7 @@ router.patch('/:id/cancel', async (req: any, res) => {
       return res.status(400).json({ message: 'Cancellation reason is required.' });
     }
 
-    const booking = await cancelBooking(Number(req.params.id), req.user.id, reason);
+    const booking = await cancelBooking(Number(req.params.id), req.user.id, reason, req.user.role);
     res.json(booking);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
