@@ -2,7 +2,7 @@ import express from 'express';
 import { registerUser, loginUser, refreshAccessToken, logout, resetPasswordWithToken } from '../services/auth.service';
 // import { createResetTokenForUser, verifyResetToken } from '../services/password.service';
 
-import { createResetTokenForUser, changePasswordForUser } from '../services/password.service';
+import { createResetTokenForUser, changePasswordForUser, verifyResetToken } from '../services/password.service';
 import { authenticate } from '../middleware/auth';
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { validateBody } from '../middleware/validate';
@@ -95,17 +95,6 @@ const resetPasswordLimit = rateLimiter(15 * 60 * 1000, 5, 'Too many password res
 router.post('/forgot-password', forgotPasswordLimit, async (req, res) => {
   try {
     const { email } = req.body;
-<<<<<<< HEAD
-    const normalizedEmail = String(email || '').trim().toLowerCase();
-
-    if (!normalizedEmail) {
-      return res.status(400).json({ message: 'email is required' });
-    }
-
-    // Always respond with success to avoid user enumeration.
-    await createResetTokenForUser(normalizedEmail).catch(() => undefined);
-    return res.json({ message: 'Password reset requested. Check your email for the reset link.' });
-=======
     if (!email || !email.trim()) {
       return res.status(400).json({ message: 'Email is required' });
     }
@@ -120,7 +109,6 @@ router.post('/forgot-password', forgotPasswordLimit, async (req, res) => {
       }
     }
     res.json({ message: 'If that email address is registered, a password reset link has been sent to it.' });
->>>>>>> 5ec5611d3d11a56de7742b3007f9b0de89005147
   } catch (err: any) {
     if (err?.message === 'smtp_not_configured') {
       return res.status(503).json({ message: 'Email service is not configured. Please contact support.' });
