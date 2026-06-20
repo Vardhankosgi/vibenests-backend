@@ -16,7 +16,7 @@ const userMembershipRepo = AppDataSource.getRepository(UserMembership);
 const updatePlanSchema = z.object({
   name: z.string().min(1).optional(),
   price: z.number().nonnegative().optional(),
-  validityType: z.enum(['monthly', 'yearly', 'custom']).optional(),
+  validityType: z.enum(['monthly', 'quarterly', 'half-yearly', 'yearly', 'custom']).optional(),
   validityDays: z.number().int().positive().optional(),
   maxFreeBookings: z.number().int().nonnegative().optional(),
   eligibleSuites: z.array(z.string()).optional(),
@@ -29,7 +29,7 @@ const updatePlanSchema = z.object({
 const createPlanSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   price: z.number().nonnegative(),
-  validityType: z.enum(['monthly', 'yearly', 'custom']).optional(),
+  validityType: z.enum(['monthly', 'quarterly', 'half-yearly', 'yearly', 'custom']).optional(),
   validityDays: z.number().int().positive(),
   maxFreeBookings: z.number().int().nonnegative().optional(),
   eligibleSuites: z.array(z.string()).optional(),

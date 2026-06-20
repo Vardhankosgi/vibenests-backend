@@ -151,6 +151,7 @@ router.post('/reset-password', resetPasswordLimit, async (req, res) => {
             return res.status(400).json({ message: 'password is required' });
         // Validate early so we return consistent error when token is invalid.
         (0, password_service_1.verifyResetToken)(token);
+        // verifyResetToken(token);
         await (0, auth_service_1.resetPasswordWithToken)(token, password);
         return res.json({ message: 'Password reset successful' });
     }

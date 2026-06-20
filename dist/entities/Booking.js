@@ -20,7 +20,7 @@ __decorate([
     __metadata("design:type", Number)
 ], Booking.prototype, "id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ nullable: true, unique: true }),
+    (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], Booking.prototype, "orderId", void 0);
 __decorate([
@@ -140,6 +140,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true }),
     __metadata("design:type", String)
 ], Booking.prototype, "couponCode", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], Booking.prototype, "rescheduleCount", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
