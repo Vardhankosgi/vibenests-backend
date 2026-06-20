@@ -12,6 +12,7 @@ const users_1 = __importDefault(require("./routes/users"));
 const suites_1 = __importDefault(require("./routes/suites"));
 const addons_1 = __importDefault(require("./routes/addons"));
 const payments_1 = __importDefault(require("./routes/payments"));
+const payments_links_1 = __importDefault(require("./routes/payments-links"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const reports_1 = __importDefault(require("./routes/reports"));
 const offers_1 = __importDefault(require("./routes/offers"));
@@ -40,6 +41,7 @@ app.use('/users', users_1.default);
 app.use('/suites', suites_1.default);
 app.use('/addons', addons_1.default);
 app.use('/payments', payments_1.default);
+app.use('/payments-links', payments_links_1.default);
 app.use('/notifications', notifications_1.default);
 app.use('/reports', reports_1.default);
 // New modules

@@ -109,6 +109,10 @@ __decorate([
     __metadata("design:type", String)
 ], Booking.prototype, "paymentMode", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true, default: 'guest' }),
+    __metadata("design:type", String)
+], Booking.prototype, "bookedBy", void 0);
+__decorate([
     (0, typeorm_1.Column)('decimal', { precision: 10, scale: 2, default: 0 }),
     __metadata("design:type", Number)
 ], Booking.prototype, "advanceAmount", void 0);

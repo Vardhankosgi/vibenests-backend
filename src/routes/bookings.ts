@@ -22,6 +22,7 @@ import {
   getMeetingLink,
   rescheduleBooking,
 } from '../services/bookings.service';
+import { adminCreateRazorpayLink } from '../services/razorpay-admin-link.service';
 
 
 const router = express.Router();
@@ -70,7 +71,6 @@ router.get('/', async (req: any, res) => {
   }
 });
 
-
 router.get('/:id', async (req: any, res) => {
   try {
     const user = req.user;
@@ -110,9 +110,7 @@ router.get('/:id', async (req: any, res) => {
         quantity: addOnCounts[String(a.id)] ?? 0,
       }));
 
-      // Attach without removing existing properties.
       (booking as any).addOnsDetails = details;
-      // Keep legacy fields used elsewhere (addOnsNames might exist on some booking payloads)
       if (!(booking as any).addOnsNames) {
         (booking as any).addOnsNames = details.flatMap((d: any) => Array.from({ length: d.quantity }, () => d.name));
       }
@@ -125,7 +123,7 @@ router.get('/:id', async (req: any, res) => {
     const refundRepo = AppDataSource.getRepository(RefundCalculation);
     const refundRequest = await refundRepo.findOne({
       where: { bookingId: booking.id },
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
     (booking as any).refundRequest = refundRequest ?? null;
 
@@ -134,7 +132,6 @@ router.get('/:id', async (req: any, res) => {
     res.status(500).json({ message: err.message });
   }
 });
-
 
 router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
   try {
@@ -178,6 +175,7 @@ router.post('/admin', requireRole('admin'), validateBody(adminBookingSchema), as
       guestLastName: p.guestLastName,
       guestEmail: p.guestEmail,
       guestPhone: p.guestPhone,
+      persons: p.persons,
       totalAmount: p.totalAmount,
     });
     res.status(201).json(booking);
@@ -185,6 +183,51 @@ router.post('/admin', requireRole('admin'), validateBody(adminBookingSchema), as
     res.status(400).json({ message: err.message });
   }
 });
+
+
+router.post('/admin/create-razorpay-link', requireRole('admin'), async (req: any, res) => {
+  try {
+    const {
+      suiteId,
+      eventType,
+      addOns,
+      date,
+      timeSlot,
+      endTimeSlot,
+      guestFirstName,
+      guestLastName,
+      guestEmail,
+      guestPhone,
+      totalAmount,
+    } = req.body || {};
+
+    if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestEmail || !guestPhone || !totalAmount) {
+      return res.status(400).json({ message: 'Missing required booking fields' });
+    }
+
+    const { booking, paymentLink } = await adminCreateRazorpayLink({
+      suiteId: Number(suiteId),
+      eventType: String(eventType ?? ''),
+      addOns: (addOns || []).map(String),
+      date: String(date),
+      timeSlot: String(timeSlot),
+      endTimeSlot: endTimeSlot ? String(endTimeSlot) : undefined,
+      guestFirstName: String(guestFirstName),
+      guestLastName: String(guestLastName),
+      guestEmail: String(guestEmail),
+      guestPhone: String(guestPhone),
+      totalAmount: Number(totalAmount),
+      persons: req.body.persons,
+    });
+
+
+
+    res.status(201).json({ booking, paymentLink });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 
 router.patch('/:id/status', authenticate, requireRole('admin'), async (req: any, res) => {
   try {
@@ -210,7 +253,6 @@ router.patch('/:id/cancel', async (req: any, res) => {
   }
 });
 
-
 router.patch('/:id/reschedule', async (req: any, res) => {
   try {
     const bookingId = Number(req.params.id);
@@ -225,7 +267,6 @@ router.patch('/:id/reschedule', async (req: any, res) => {
     res.status(400).json({ message: err.message });
   }
 });
-
 
 router.post('/:id/pay-cash', async (req: any, res) => {
   try {
@@ -247,9 +288,10 @@ router.post('/:id/pay-cash', async (req: any, res) => {
     booking.fullPaymentReceived = true;
     booking.status = 'confirmed';
     booking.paymentStatus = 'success';
+    booking.bookedBy = 'admin';
+
     await bookingRepo.save(booking);
 
-    // Create a Payment record of method 'cash' and status 'success'
     const balanceAmount = Number(booking.totalAmount) - Number(booking.advanceAmount);
     const paymentRepo = AppDataSource.getRepository(Payment);
     const cashPayment = paymentRepo.create({
@@ -261,7 +303,6 @@ router.post('/:id/pay-cash', async (req: any, res) => {
     });
     const savedPayment = await paymentRepo.save(cashPayment);
 
-    // Send email confirmation
     try {
       const { sendPaymentSuccessNotifications } = await import('../services/payments.service');
       await sendPaymentSuccessNotifications(savedPayment);
@@ -280,9 +321,11 @@ router.post('/:id/meeting-link', async (req: any, res) => {
     const link = await getMeetingLink(Number(req.params.id), req.user.id, req.user.role);
     res.json({ meeting_link: link });
   } catch (err: any) {
-    const status = err.message === 'Forbidden' ? 403 : err.message === 'Booking not found' ? 404 : 400;
+    const status =
+      err.message === 'Forbidden' ? 403 : err.message === 'Booking not found' ? 404 : 400;
     res.status(status).json({ message: err.message });
   }
 });
 
 export default router;
+

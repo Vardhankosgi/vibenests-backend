@@ -59,5 +59,7 @@ export const adminBookingSchema = z.object({
   guestLastName: z.string().min(1),
   guestEmail: z.string().email(),
   guestPhone: z.string().min(6),
+  persons: z.number().int().positive().optional(),
   totalAmount: z.number().min(0),
 });
+

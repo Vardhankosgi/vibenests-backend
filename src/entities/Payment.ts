@@ -34,6 +34,11 @@ export class Payment {
   @Column({ nullable: true })
   providerSignature?: string;
 
+  // Razorpay payment link used by admin/guest flows
+  @Column({ nullable: true })
+  paymentLink?: string;
+
   @CreateDateColumn()
   createdAt!: Date;
 }
+

@@ -57,6 +57,10 @@ __decorate([
     __metadata("design:type", String)
 ], Payment.prototype, "providerSignature", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", String)
+], Payment.prototype, "paymentLink", void 0);
+__decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)
 ], Payment.prototype, "createdAt", void 0);

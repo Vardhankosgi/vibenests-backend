@@ -176,8 +176,10 @@ export const adminCreateBooking = async (payload: {
   guestLastName: string;
   guestEmail: string;
   guestPhone: string;
+  persons?: number;
   totalAmount: number;
 }) => {
+
   const bookingRepo = repo();
   const userRepo = AppDataSource.getRepository(User);
   const suiteRepo = AppDataSource.getRepository(Suite);
@@ -232,15 +234,21 @@ export const adminCreateBooking = async (payload: {
     date: payload.date,
     timeSlot: payload.timeSlot,
     endTimeSlot: payload.endTimeSlot,
+    persons: payload.persons ?? 1,
     guestFirstName: payload.guestFirstName,
     guestLastName: payload.guestLastName,
     guestEmail: payload.guestEmail,
     guestPhone: payload.guestPhone,
     totalAmount: payload.totalAmount,
     status: 'confirmed',
+    bookedBy: 'admin',
+
     paymentStatus: 'success',
     fullPaymentReceived: true,
+
   } as any);
+
+
   const savedBooking = await bookingRepo.save(booking) as unknown as Booking;
 
   // ── Resolve suite name & addon names for email ────────────────────────────

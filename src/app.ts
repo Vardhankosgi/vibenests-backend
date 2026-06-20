@@ -7,6 +7,10 @@ import usersRoutes from './routes/users';
 import suitesRoutes from './routes/suites';
 import addonsRoutes from './routes/addons';
 import paymentsRoutes from './routes/payments';
+import paymentsLinksRoutes from './routes/payments-links';
+import paymentsLinksPublicRoutes from './routes/payments-links-public';
+
+
 import notificationsRoutes from './routes/notifications';
 import reportsRoutes from './routes/reports';
 import offersRoutes from './routes/offers';
@@ -39,11 +43,18 @@ app.use('/users', usersRoutes);
 app.use('/suites', suitesRoutes);
 app.use('/addons', addonsRoutes);
 app.use('/payments', paymentsRoutes);
+app.use('/payments-links', paymentsLinksRoutes);
+app.use('/payments-links-public', paymentsLinksPublicRoutes);
+
+// also mount public link routes if needed
+
+
 app.use('/notifications', notificationsRoutes);
 app.use('/reports', reportsRoutes);
 
 // New modules
 app.use('/offers', offersRoutes);
+
 app.use('/coupons', couponsRoutes);
 app.use('/refunds', refundsRoutes);
 app.use('/tax-charges', taxChargesRoutes);

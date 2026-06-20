@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const auth_service_1 = require("../services/auth.service");
+// import { createResetTokenForUser, verifyResetToken } from '../services/password.service';
 const password_service_1 = require("../services/password.service");
 const auth_1 = require("../middleware/auth");
 const otp_service_1 = require("../services/otp.service");
@@ -117,7 +118,7 @@ router.post('/forgot-password', forgotPasswordLimit, async (req, res) => {
         if (err?.message === 'smtp_not_configured') {
             return res.status(503).json({ message: 'Email service is not configured. Please contact support.' });
         }
-        res.status(400).json({ message: err.message });
+        return res.status(400).json({ message: err.message || 'Failed to request password reset' });
     }
 });
 router.get('/verify-reset-token/:token', async (req, res) => {
@@ -144,11 +145,17 @@ router.get('/verify-reset-token/:token', async (req, res) => {
 router.post('/reset-password', resetPasswordLimit, async (req, res) => {
     try {
         const { token, password } = req.body;
+        if (!token)
+            return res.status(400).json({ message: 'token is required' });
+        if (!password)
+            return res.status(400).json({ message: 'password is required' });
+        // Validate early so we return consistent error when token is invalid.
+        (0, password_service_1.verifyResetToken)(token);
         await (0, auth_service_1.resetPasswordWithToken)(token, password);
-        res.json({ message: 'Password reset successful' });
+        return res.json({ message: 'Password reset successful' });
     }
     catch (err) {
-        res.status(400).json({ message: err.message });
+        return res.status(400).json({ message: err.message || 'Invalid or expired token' });
     }
 });
 router.post('/change-password', auth_1.authenticate, async (req, res) => {

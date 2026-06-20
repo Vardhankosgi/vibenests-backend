@@ -73,6 +73,11 @@ export class Booking {
   @Column({ default: 'pay_now' })
   paymentMode!: 'pay_now' | 'pay_at_venue' | 'package_credit';
 
+  // Who booked the suite
+  @Column({ nullable: true, default: 'guest' })
+  bookedBy?: 'guest' | 'admin';
+
+
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   advanceAmount!: number;
 

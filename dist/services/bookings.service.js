@@ -224,12 +224,14 @@ const adminCreateBooking = async (payload) => {
         date: payload.date,
         timeSlot: payload.timeSlot,
         endTimeSlot: payload.endTimeSlot,
+        persons: payload.persons ?? 1,
         guestFirstName: payload.guestFirstName,
         guestLastName: payload.guestLastName,
         guestEmail: payload.guestEmail,
         guestPhone: payload.guestPhone,
         totalAmount: payload.totalAmount,
         status: 'confirmed',
+        bookedBy: 'admin',
         paymentStatus: 'success',
         fullPaymentReceived: true,
     });
@@ -469,8 +471,12 @@ const updateBookingPaymentStatus = async (id, paymentStatus) => {
     return repo().save(booking);
 };
 exports.updateBookingPaymentStatus = updateBookingPaymentStatus;
-const cancelBooking = async (id, userId, reason) => {
-    const booking = await repo().findOne({ where: { id, user: { id: userId } } });
+const cancelBooking = async (id, userId, reason, requestingRole) => {
+    let whereClause = { id, user: { id: userId } };
+    if (requestingRole === 'admin') {
+        whereClause = { id };
+    }
+    const booking = await repo().findOne({ where: whereClause });
     if (!booking)
         throw new Error('Booking not found');
     if (booking.status === 'cancelled')
