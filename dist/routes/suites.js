@@ -93,13 +93,20 @@ router.get('/:id/blocked-slots', async (req, res) => {
         if (!date) {
             return res.status(400).json({ message: 'Date parameter is required' });
         }
-        const bookingRepo = data_source_1.AppDataSource.getRepository(Booking_1.Booking);
-        const bookings = await bookingRepo.find({
+        let bookings = await data_source_1.AppDataSource.getRepository(Booking_1.Booking).find({
             where: {
                 suiteId,
                 date,
                 status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
             },
+        });
+        // Filter out pending bookings older than 15 minutes
+        const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+        bookings = bookings.filter((b) => {
+            if (b.status === 'pending') {
+                return new Date(b.createdAt) >= fifteenMinsAgo;
+            }
+            return true;
         });
         const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
         const blocks = await availabilityRepo.find({
@@ -132,13 +139,21 @@ router.get('/:id/availability-details', auth_1.authenticate, (0, auth_1.requireR
             return res.status(400).json({ message: 'Date parameter is required' });
         }
         const bookingRepo = data_source_1.AppDataSource.getRepository(Booking_1.Booking);
-        const bookings = await bookingRepo.find({
+        let bookings = await bookingRepo.find({
             where: {
                 suiteId,
                 date,
                 status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
             },
             relations: ['user'],
+        });
+        // Filter out pending bookings older than 15 minutes
+        const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+        bookings = bookings.filter((b) => {
+            if (b.status === 'pending') {
+                return new Date(b.createdAt) >= fifteenMinsAgo;
+            }
+            return true;
         });
         const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
         const blocks = await availabilityRepo.find({

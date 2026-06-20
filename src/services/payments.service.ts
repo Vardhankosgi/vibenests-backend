@@ -1,3 +1,4 @@
+import { In } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Payment } from '../entities/Payment';
 import { Booking } from '../entities/Booking';
@@ -76,19 +77,34 @@ const updateFullPaymentStatus = async (bookingId: number) => {
   try {
     const bookingRepo = AppDataSource.getRepository(Booking);
     const booking = await bookingRepo.findOneBy({ id: bookingId });
-    if (booking) {
-      const paymentRepo = AppDataSource.getRepository(Payment);
-      const successfulPayments = await paymentRepo.find({
-        where: { bookingId, status: 'success' }
-      });
-      const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
-      if (totalPaid >= Number(booking.totalAmount) - 1 || booking.paymentMode === 'package_credit') {
-        const alreadyConfirmed = booking.status === 'confirmed';
-        booking.fullPaymentReceived = true;
-        booking.status = 'confirmed';
-        await bookingRepo.save(booking);
+    if (!booking) return;
+
+    const paymentRepo = AppDataSource.getRepository(Payment);
+
+    let bookingsToCheck = [booking];
+    if (booking.orderId) {
+      const relatedBookings = await bookingRepo.find({ where: { orderId: booking.orderId } });
+      if (relatedBookings.length > 0) {
+        bookingsToCheck = relatedBookings;
+      }
+    }
+
+    const bookingIds = bookingsToCheck.map(b => b.id);
+    const successfulPayments = await paymentRepo.find({
+      where: { bookingId: In(bookingIds), status: 'success' }
+    });
+
+    const totalPaid = successfulPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalRequired = bookingsToCheck.reduce((sum, b) => sum + Number(b.totalAmount), 0);
+
+    if (totalPaid >= totalRequired - 1 || booking.paymentMode === 'package_credit') {
+      for (const b of bookingsToCheck) {
+        const alreadyConfirmed = b.status === 'confirmed';
+        b.fullPaymentReceived = true;
+        b.status = 'confirmed';
+        await bookingRepo.save(b);
         if (!alreadyConfirmed) {
-          await handleBookingConfirmationSideEffects(bookingId);
+          await handleBookingConfirmationSideEffects(b.id);
         }
       }
     }
@@ -180,28 +196,28 @@ export const verifyAndConfirmPayment = async (
   payment.providerSignature = razorpaySignature;
   await repo().save(payment);
 
-  await updateBookingPaymentStatus(payment.bookingId, 'success');
-  await activateMembershipForBooking(payment.bookingId);
-  await updateFullPaymentStatus(payment.bookingId);
+  const bookingRepo = AppDataSource.getRepository('Booking');
+  const primaryBooking = await bookingRepo.findOne({ where: { id: payment.bookingId } }) as any;
+  
+  let bookingIdsToConfirm = [payment.bookingId];
+  if (primaryBooking?.orderId) {
+    const relatedBookings = await bookingRepo.find({ where: { orderId: primaryBooking.orderId } }) as any[];
+    if (relatedBookings.length > 0) {
+      bookingIdsToConfirm = relatedBookings.map(b => b.id);
+    }
+  }
 
-  // Ensure booking guest details exist (frontend depends on these fields).
-  // If booking-level guest fields are empty, copy from linked user record.
-  try {
-    const bookingRepo = AppDataSource.getRepository('Booking');
-    const booking = await bookingRepo.findOne({ where: { id: payment.bookingId }, relations: ['user'] }) as any;
+  for (const bId of bookingIdsToConfirm) {
+    await updateBookingPaymentStatus(bId, 'success');
+    await activateMembershipForBooking(bId);
+    await updateFullPaymentStatus(bId);
 
-    if (booking?.user) {
-      // Always backfill from booking.user (guest/customer) because some admin/payment flows
-      // may create bookings without copying guest fields.
-      // This avoids accidentally showing admin details.
-      const shouldBackfill = true;
-
-      if (shouldBackfill) {
+    try {
+      const booking = await bookingRepo.findOne({ where: { id: bId }, relations: ['user'] }) as any;
+      if (booking?.user) {
         const fullName = booking.user?.fullName || '';
-
         const [firstName, ...rest] = String(fullName).split(' ');
         const lastName = rest.join(' ');
-
         await bookingRepo.save({
           id: booking.id,
           guestFirstName: firstName || booking.user?.fullName || undefined,
@@ -210,9 +226,9 @@ export const verifyAndConfirmPayment = async (
           guestPhone: booking.user?.phone || undefined,
         });
       }
+    } catch (err) {
+      console.warn('Guest backfill failed', err);
     }
-  } catch (err) {
-    console.warn('Guest backfill failed', err);
   }
 
   // Send confirmation email + WhatsApp concurrently (best-effort)
@@ -262,12 +278,30 @@ export const verifyPayment = async (paymentId: number, result: { status: 'succes
   payment.providerOrderId = result.providerOrderId;
   payment.providerSignature = result.providerSignature;
   await repo().save(payment);
-  await updateBookingPaymentStatus(payment.bookingId, result.status === 'success' ? 'success' : 'failed');
+
+  const bookingRepo = AppDataSource.getRepository(Booking);
+  const primaryBooking = await bookingRepo.findOne({ where: { id: payment.bookingId } });
+  
+  let bookingIdsToConfirm = [payment.bookingId];
+  if (primaryBooking?.orderId) {
+    const relatedBookings = await bookingRepo.find({ where: { orderId: primaryBooking.orderId } });
+    if (relatedBookings.length > 0) {
+      bookingIdsToConfirm = relatedBookings.map(b => b.id);
+    }
+  }
+
+  for (const bId of bookingIdsToConfirm) {
+    await updateBookingPaymentStatus(bId, result.status === 'success' ? 'success' : 'failed');
+    if (result.status === 'success') {
+      await activateMembershipForBooking(bId);
+      await updateFullPaymentStatus(bId);
+    }
+  }
+
   if (result.status === 'success') {
-    await activateMembershipForBooking(payment.bookingId);
-    await updateFullPaymentStatus(payment.bookingId);
     await sendPaymentSuccessNotifications(payment);
   }
+
   return payment;
 };
 

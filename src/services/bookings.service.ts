@@ -31,8 +31,7 @@ export const createBooking = async (payload: {
   eventType: string;
   addOns?: string[];
   date: string;
-  timeSlot: string;
-  endTimeSlot?: string;
+  timeSlots: string[];
   persons?: number;
   basePrice?: number;
   addonsTotal?: number;
@@ -40,32 +39,38 @@ export const createBooking = async (payload: {
   serviceFee?: number;
   taxes?: number;
   totalAmount?: number;
-  paymentMode?: 'pay_now' | 'pay_at_venue' | 'package_credit';
+  paymentMode?: 'pay_now' | 'pay_at_venue' | 'package_credit' | 'package_purchase';
   advanceAmount?: number;
   couponCode?: string;
 }) => {
   const bookingRepo = repo();
-  if (payload.suiteId !== 0) {
-    const exists = await bookingRepo.findOne({
-      where: {
-        suiteId: payload.suiteId,
-        date: payload.date,
-        timeSlot: payload.timeSlot,
-        status: In(['confirmed', 'pending', 'completed']),
-      },
-    });
-    if (exists) throw new Error('Slot already booked');
+  const suiteRepo = AppDataSource.getRepository(Suite);
+  const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+  const suiteName = suite?.name ?? payload.suiteName ?? `Suite ${payload.suiteId}`;
 
+  if (payload.suiteId !== 0) {
     const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
-    const blocked = await availabilityRepo.findOne({
-      where: {
-        suiteId: payload.suiteId,
-        date: payload.date,
-        timeSlot: payload.timeSlot,
-        status: 'blocked',
-      },
-    });
-    if (blocked) throw new Error('Slot is blocked by administration');
+    for (const ts of payload.timeSlots) {
+      const exists = await bookingRepo.findOne({
+        where: {
+          suiteId: payload.suiteId,
+          date: payload.date,
+          timeSlot: ts,
+          status: In(['confirmed', 'pending', 'completed']),
+        },
+      });
+      if (exists) throw new Error(`Slot ${ts} already booked`);
+
+      const blocked = await availabilityRepo.findOne({
+        where: {
+          suiteId: payload.suiteId,
+          date: payload.date,
+          timeSlot: ts,
+          status: 'blocked',
+        },
+      });
+      if (blocked) throw new Error(`Slot ${ts} is blocked by administration`);
+    }
   }
 
   const isPackageCredit = payload.paymentMode === 'package_credit';
@@ -77,8 +82,8 @@ export const createBooking = async (payload: {
     if (!activeMembership) {
       throw new Error('You do not have an active package membership.');
     }
-    if (activeMembership.bookingsUsed >= activeMembership.maxFreeBookings) {
-      throw new Error('You have used all free bookings allowed in your package.');
+    if (activeMembership.bookingsUsed + payload.timeSlots.length > activeMembership.maxFreeBookings) {
+      throw new Error(`You have only ${activeMembership.maxFreeBookings - activeMembership.bookingsUsed} free bookings left in your package.`);
     }
     const eligibleSuites = activeMembership.eligibleSuites || [];
     if (!eligibleSuites.includes(String(payload.suiteId))) {
@@ -86,7 +91,6 @@ export const createBooking = async (payload: {
     }
   }
 
-  // Verify and validate couponCode on backend if sent
   if (payload.couponCode) {
     try {
       await validateCoupon(payload.couponCode, payload.totalAmount ?? 0, payload.userId);
@@ -96,61 +100,75 @@ export const createBooking = async (payload: {
   }
 
   const orderId = await generateUniqueOrderId(bookingRepo);
-  const booking = bookingRepo.create({
-    orderId,
-    user: { id: payload.userId } as User,
-    suiteId: payload.suiteId,
-    suiteName: payload.suiteName,
-    eventType: payload.eventType,
-    addOns: payload.addOns || [],
-    date: payload.date,
-    timeSlot: payload.timeSlot,
-    endTimeSlot: payload.endTimeSlot,
-    persons: payload.persons ?? 1,
-    basePrice: payload.basePrice ?? 0,
-    addonsTotal: payload.addonsTotal ?? 0,
-    savings: payload.savings ?? 0,
-    serviceFee: payload.serviceFee ?? 0,
-    taxes: payload.taxes ?? 0,
-    totalAmount: isPackageCredit ? 0 : (payload.totalAmount ?? 0),
-    paymentMode: payload.paymentMode ?? 'pay_now',
-    advanceAmount: isPackageCredit ? 0 : (payload.advanceAmount ?? 0),
-    status: isPackageCredit ? 'confirmed' : 'pending',
-    paymentStatus: isPackageCredit ? 'success' : 'pending',
-    fullPaymentReceived: isPackageCredit ? true : false,
-    couponCode: payload.couponCode || null,
-  } as any);
+  const numSlots = payload.timeSlots.length;
+  const createdBookings: any[] = [];
 
-  const savedBooking = await bookingRepo.save(booking) as any;
+  const perSlotBasePrice = (payload.basePrice ?? 0) / numSlots;
+  const perSlotAddonsTotal = (payload.addonsTotal ?? 0) / numSlots;
+  const perSlotSavings = (payload.savings ?? 0) / numSlots;
+  const perSlotServiceFee = (payload.serviceFee ?? 0) / numSlots;
+  const perSlotTaxes = (payload.taxes ?? 0) / numSlots;
+  const perSlotTotalAmount = (payload.totalAmount ?? 0) / numSlots;
+  const perSlotAdvanceAmount = (payload.advanceAmount ?? 0) / numSlots;
 
-  if (isPackageCredit && activeMembership) {
-    const userMembershipRepo = AppDataSource.getRepository(UserMembership);
-    activeMembership.bookingsUsed += 1;
-    await userMembershipRepo.save(activeMembership);
-    // Package credit bookings are confirmed instantly, run side effects
-    await handleBookingConfirmationSideEffects(savedBooking.id);
+  for (const ts of payload.timeSlots) {
+    let endTimeSlot = '';
+    if (suite) {
+      endTimeSlot = computeEndTimeSlot(suite, ts);
+    }
+
+    const booking = bookingRepo.create({
+      orderId,
+      user: { id: payload.userId } as User,
+      suiteId: payload.suiteId,
+      suiteName,
+      eventType: payload.eventType,
+      addOns: payload.addOns || [],
+      date: payload.date,
+      timeSlot: ts,
+      endTimeSlot,
+      persons: payload.persons ?? 1,
+      basePrice: perSlotBasePrice,
+      addonsTotal: perSlotAddonsTotal,
+      savings: perSlotSavings,
+      serviceFee: perSlotServiceFee,
+      taxes: perSlotTaxes,
+      totalAmount: isPackageCredit ? 0 : perSlotTotalAmount,
+      paymentMode: payload.paymentMode ?? 'pay_now',
+      advanceAmount: isPackageCredit ? 0 : perSlotAdvanceAmount,
+      status: isPackageCredit ? 'confirmed' : 'pending',
+      paymentStatus: isPackageCredit ? 'success' : 'pending',
+      fullPaymentReceived: isPackageCredit ? true : false,
+      couponCode: payload.couponCode || null,
+    } as any);
+
+    const savedBooking = await bookingRepo.save(booking) as any;
+    createdBookings.push(savedBooking);
+
+    if (isPackageCredit && activeMembership) {
+      const userMembershipRepo = AppDataSource.getRepository(UserMembership);
+      activeMembership.bookingsUsed += 1;
+      await userMembershipRepo.save(activeMembership);
+      await handleBookingConfirmationSideEffects(savedBooking.id);
+    }
   }
 
-  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
+  const finalBookings = await bookingRepo.find({ where: { orderId }, relations: ['user'] });
+  const representativeBooking = finalBookings[0] || createdBookings[0];
+  const guestEmail = representativeBooking?.user?.email;
+  const guestName = representativeBooking?.user?.fullName || 'Guest';
 
   if (isPackageCredit) {
     try {
-      const suiteRepo = AppDataSource.getRepository(Suite);
-      const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
-      const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
-
-      const guestEmail = finalBooking?.user?.email;
-      const guestName = finalBooking?.user?.fullName || 'Guest';
-
       if (guestEmail) {
         sendBookingConfirmationEmail({
           to: guestEmail,
           guestName,
-          bookingId: savedBooking.id,
+          bookingId: representativeBooking.id,
           suiteName,
           date: payload.date,
-          startTime: payload.timeSlot,
-          endTime: payload.endTimeSlot ?? '',
+          startTime: payload.timeSlots.join(', '),
+          endTime: '',
           occasion: payload.eventType,
           addOns: [],
           totalAmount: 0,
@@ -161,22 +179,15 @@ export const createBooking = async (payload: {
     }
   } else {
     try {
-      const suiteRepo = AppDataSource.getRepository(Suite);
-      const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
-      const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
-
-      const guestEmail = finalBooking?.user?.email;
-      const guestName = finalBooking?.user?.fullName || 'Guest';
-
       if (guestEmail) {
         sendBookingReceivedEmail({
           to: guestEmail,
           guestName,
-          bookingId: savedBooking.id,
+          bookingId: representativeBooking.id,
           suiteName,
           date: payload.date,
-          startTime: payload.timeSlot,
-          endTime: payload.endTimeSlot ?? '',
+          startTime: payload.timeSlots.join(', '),
+          endTime: '',
           occasion: payload.eventType,
           addOns: payload.addOns || [],
           totalAmount: payload.totalAmount ?? 0,
@@ -187,7 +198,8 @@ export const createBooking = async (payload: {
     }
   }
 
-  return finalBooking || savedBooking;
+  // Return the first booking or the whole array. We return an array, but express routes might expect one.
+  return finalBookings;
 };
 
 
@@ -196,8 +208,7 @@ export const adminCreateBooking = async (payload: {
   eventType: string;
   addOns?: string[];
   date: string;
-  timeSlot: string;
-  endTimeSlot?: string;
+  timeSlots: string[];
   guestFirstName: string;
   guestLastName: string;
   guestEmail: string;
@@ -209,28 +220,30 @@ export const adminCreateBooking = async (payload: {
   const suiteRepo = AppDataSource.getRepository(Suite);
   const addonRepo = AppDataSource.getRepository(AddOn);
 
-  const exists = await bookingRepo.findOne({
-    where: {
-      suiteId: payload.suiteId,
-      date: payload.date,
-      timeSlot: payload.timeSlot,
-      status: In(['confirmed', 'pending', 'completed']),
-    },
-  });
-  if (exists) throw new Error('Slot already booked for this date and time');
-
   const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
-  const blocked = await availabilityRepo.findOne({
-    where: {
-      suiteId: payload.suiteId,
-      date: payload.date,
-      timeSlot: payload.timeSlot,
-      status: 'blocked',
-    },
-  });
-  if (blocked) throw new Error('Slot is blocked by administration');
 
-  // ── Upsert guest user ──────────────────────────────────────────────────────
+  for (const ts of payload.timeSlots) {
+    const exists = await bookingRepo.findOne({
+      where: {
+        suiteId: payload.suiteId,
+        date: payload.date,
+        timeSlot: ts,
+        status: In(['confirmed', 'pending', 'completed']),
+      },
+    });
+    if (exists) throw new Error(`Slot ${ts} already booked for this date and time`);
+
+    const blocked = await availabilityRepo.findOne({
+      where: {
+        suiteId: payload.suiteId,
+        date: payload.date,
+        timeSlot: ts,
+        status: 'blocked',
+      },
+    });
+    if (blocked) throw new Error(`Slot ${ts} is blocked by administration`);
+  }
+
   const fullName = `${payload.guestFirstName} ${payload.guestLastName}`.trim();
   let guestUser = await userRepo.findOneBy({ email: payload.guestEmail });
   const isNewUser = !guestUser;
@@ -246,32 +259,41 @@ export const adminCreateBooking = async (payload: {
     guestUser = await userRepo.save(guestUser);
   }
 
-  // ── Create booking ─────────────────────────────────────────────────────────
   const orderId = await generateUniqueOrderId(bookingRepo);
-  const booking = bookingRepo.create({
-    orderId,
-    user: { id: guestUser.id } as User,
-    userId: guestUser.id,
-    suiteId: payload.suiteId,
-    eventType: payload.eventType,
-    addOns: payload.addOns || [],
-    date: payload.date,
-    timeSlot: payload.timeSlot,
-    endTimeSlot: payload.endTimeSlot,
-    guestFirstName: payload.guestFirstName,
-    guestLastName: payload.guestLastName,
-    guestEmail: payload.guestEmail,
-    guestPhone: payload.guestPhone,
-    totalAmount: payload.totalAmount,
-    status: 'confirmed',
-    paymentStatus: 'success',
-    fullPaymentReceived: true,
-  } as any);
-  const savedBooking = await bookingRepo.save(booking) as unknown as Booking;
-
-  // ── Resolve suite name & addon names for email ────────────────────────────
+  const numSlots = payload.timeSlots.length;
+  const perSlotTotalAmount = payload.totalAmount / numSlots;
+  const createdBookings: any[] = [];
+  
   const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
   const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+
+  for (const ts of payload.timeSlots) {
+    let endTimeSlot = '';
+    if (suite) {
+      endTimeSlot = computeEndTimeSlot(suite, ts);
+    }
+    const booking = bookingRepo.create({
+      orderId,
+      user: { id: guestUser.id } as User,
+      userId: guestUser.id,
+      suiteId: payload.suiteId,
+      eventType: payload.eventType,
+      addOns: payload.addOns || [],
+      date: payload.date,
+      timeSlot: ts,
+      endTimeSlot,
+      guestFirstName: payload.guestFirstName,
+      guestLastName: payload.guestLastName,
+      guestEmail: payload.guestEmail,
+      guestPhone: payload.guestPhone,
+      totalAmount: perSlotTotalAmount,
+      status: 'confirmed',
+      paymentStatus: 'success',
+      fullPaymentReceived: true,
+    } as any);
+    const savedBooking = await bookingRepo.save(booking) as unknown as Booking;
+    createdBookings.push(savedBooking);
+  }
 
   let addonNames: string[] = [];
   if (payload.addOns && payload.addOns.length) {
@@ -282,16 +304,16 @@ export const adminCreateBooking = async (payload: {
     }
   }
 
-  // ── Send emails (non-blocking) ────────────────────────────────────────────
+  const representativeBooking = createdBookings[0];
+
   sendBookingConfirmationEmail({
     to: payload.guestEmail,
-
     guestName: fullName,
-    bookingId: savedBooking.id,
+    bookingId: representativeBooking.id,
     suiteName,
     date: payload.date,
-    startTime: payload.timeSlot,
-    endTime: payload.endTimeSlot ?? '',
+    startTime: payload.timeSlots.join(', '),
+    endTime: '',
     occasion: payload.eventType,
     addOns: addonNames,
     totalAmount: payload.totalAmount,
@@ -305,22 +327,19 @@ export const adminCreateBooking = async (payload: {
       resetToken,
     }).catch((e) => console.warn('Password setup email failed:', e?.message));
 
-    // WhatsApp: account created (best-effort)
     sendAccountCreatedWhatsApp({ phone: payload.guestPhone, fullName } as any).catch(() => { });
-
   }
 
-  const finalBooking = await bookingRepo.findOne({ where: { id: savedBooking.id }, relations: ['user'] });
-  // return finalBooking || savedBooking;
-  // WhatsApp: booking confirmed (best-effort)
+  const finalBookings = await bookingRepo.find({ where: { orderId }, relations: ['user'] });
+  
   sendBookingConfirmedWhatsApp({
-    id: savedBooking.id,
+    id: representativeBooking.id,
     guestPhone: payload.guestPhone,
     guestFirstName: payload.guestFirstName,
     guestLastName: payload.guestLastName,
   }).catch(() => undefined);
 
-  return finalBooking || savedBooking;
+  return finalBookings;
 };
 
 export const findBookingsForUser = async (userId: number) => {

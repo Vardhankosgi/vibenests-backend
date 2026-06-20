@@ -148,15 +148,14 @@ router.get('/:id', async (req, res) => {
 router.post('/', (0, validate_1.validateBody)(schemas_1.bookingCreateSchema), async (req, res) => {
     try {
         const payload = req.body;
-        const booking = await (0, bookings_service_1.createBooking)({
+        const bookings = await (0, bookings_service_1.createBooking)({
             userId: req.user.id,
             suiteId: payload.suiteId,
             suiteName: payload.suiteName,
             eventType: payload.eventType || 'General Event',
             addOns: payload.addOns,
             date: payload.date,
-            timeSlot: payload.timeSlot,
-            endTimeSlot: payload.endTimeSlot,
+            timeSlots: payload.timeSlots,
             persons: payload.persons,
             basePrice: payload.basePrice,
             addonsTotal: payload.addonsTotal,
@@ -167,7 +166,9 @@ router.post('/', (0, validate_1.validateBody)(schemas_1.bookingCreateSchema), as
             paymentMode: payload.paymentMode,
             advanceAmount: payload.advanceAmount,
         });
-        res.status(201).json(booking);
+        // Send back the first booking or the array depending on frontend expectations.
+        // We will send the first one as an object but inject `bookings` array for safety.
+        res.status(201).json({ ...bookings[0], allBookings: bookings });
     }
     catch (err) {
         res.status(400).json({ message: err.message });
@@ -176,20 +177,19 @@ router.post('/', (0, validate_1.validateBody)(schemas_1.bookingCreateSchema), as
 router.post('/admin', (0, auth_1.requireRole)('admin'), (0, validate_1.validateBody)(schemas_1.adminBookingSchema), async (req, res) => {
     try {
         const p = req.body;
-        const booking = await (0, bookings_service_1.adminCreateBooking)({
+        const bookings = await (0, bookings_service_1.adminCreateBooking)({
             suiteId: p.suiteId,
             eventType: p.eventType,
             addOns: (p.addOns || []).map(String),
             date: p.date,
-            timeSlot: p.timeSlot,
-            endTimeSlot: p.endTimeSlot,
+            timeSlots: p.timeSlots,
             guestFirstName: p.guestFirstName,
             guestLastName: p.guestLastName,
             guestEmail: p.guestEmail,
             guestPhone: p.guestPhone,
             totalAmount: p.totalAmount,
         });
-        res.status(201).json(booking);
+        res.status(201).json({ ...bookings[0], allBookings: bookings });
     }
     catch (err) {
         res.status(400).json({ message: err.message });
@@ -211,7 +211,7 @@ router.patch('/:id/cancel', async (req, res) => {
         if (typeof reason !== 'string' || !reason.trim()) {
             return res.status(400).json({ message: 'Cancellation reason is required.' });
         }
-        const booking = await (0, bookings_service_1.cancelBooking)(Number(req.params.id), req.user.id, reason);
+        const booking = await (0, bookings_service_1.cancelBooking)(Number(req.params.id), req.user.id, reason, req.user.role);
         res.json(booking);
     }
     catch (err) {

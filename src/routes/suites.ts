@@ -99,13 +99,21 @@ router.get('/:id/blocked-slots', async (req, res) => {
       return res.status(400).json({ message: 'Date parameter is required' });
     }
 
-    const bookingRepo = AppDataSource.getRepository(Booking);
-    const bookings = await bookingRepo.find({
+    let bookings = await AppDataSource.getRepository(Booking).find({
       where: {
         suiteId,
         date,
         status: In(['confirmed', 'pending', 'completed']),
       },
+    });
+
+    // Filter out pending bookings older than 15 minutes
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+    bookings = bookings.filter((b) => {
+      if (b.status === 'pending') {
+        return new Date(b.createdAt) >= fifteenMinsAgo;
+      }
+      return true;
     });
 
     const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
@@ -140,13 +148,22 @@ router.get('/:id/availability-details', authenticate, requireRole('admin'), asyn
     }
 
     const bookingRepo = AppDataSource.getRepository(Booking);
-    const bookings = await bookingRepo.find({
+    let bookings = await bookingRepo.find({
       where: {
         suiteId,
         date,
         status: In(['confirmed', 'pending', 'completed']),
       },
       relations: ['user'],
+    });
+
+    // Filter out pending bookings older than 15 minutes
+    const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+    bookings = bookings.filter((b) => {
+      if (b.status === 'pending') {
+        return new Date(b.createdAt) >= fifteenMinsAgo;
+      }
+      return true;
     });
 
     const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);

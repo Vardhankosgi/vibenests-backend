@@ -12,7 +12,7 @@ export class MembershipPlan {
   price!: number;
 
   @Column({ type: 'varchar', length: 20, default: 'yearly' })
-  validityType!: 'monthly' | 'yearly' | 'custom';
+  validityType!: 'monthly' | 'quarterly' | 'half-yearly' | 'yearly' | 'custom';
 
   @Column('int')
   validityDays!: number;

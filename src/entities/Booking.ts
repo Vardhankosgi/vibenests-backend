@@ -6,7 +6,7 @@ export class Booking {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ nullable: true, unique: true })
+  @Column({ nullable: true })
   orderId?: string;
 
   @ManyToOne(() => User, { nullable: true })
@@ -71,7 +71,7 @@ export class Booking {
   totalAmount!: number;
 
   @Column({ default: 'pay_now' })
-  paymentMode!: 'pay_now' | 'pay_at_venue' | 'package_credit';
+  paymentMode!: 'pay_now' | 'pay_at_venue' | 'package_credit' | 'package_purchase';
 
   @Column('decimal', { precision: 10, scale: 2, default: 0 })
   advanceAmount!: number;
