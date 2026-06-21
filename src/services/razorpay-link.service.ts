@@ -46,4 +46,44 @@ export async function createRazorpayHostedCheckoutLink(opts: {
   };
 }
 
+export async function createRazorpayPaymentLink(opts: {
+  amount: number;
+  currency?: string;
+  bookingId: number;
+  callbackUrl?: string;
+  customer?: { name?: string; email?: string; phone?: string };
+}) {
+  const client = getRazorpayClient();
+  const currency = opts.currency ?? 'INR';
+  const customer = opts.customer;
+
+  const payload: any = {
+    amount: Math.round(opts.amount * 100),
+    currency,
+    accept_partial: false,
+    description: `Payment for booking #VN${opts.bookingId}`,
+    callback_url: opts.callbackUrl || `${process.env.FRONTEND_ORIGIN || 'http://localhost:5174'}/payments/razorpay-link-success`,
+    callback_method: 'get',
+    notify: { sms: false, email: false },
+    reminder_enable: false,
+    notes: { bookingId: String(opts.bookingId) },
+  };
+
+  if (customer?.name || customer?.email || customer?.phone) {
+    payload.customer = {
+      name: customer.name ?? '',
+      email: customer.email ?? '',
+      contact: customer.phone ?? '',
+    };
+  }
+
+  const link = await (client as any).paymentLink.create(payload);
+  const paymentLink = (link as any).short_url || (link as any).id;
+
+  return {
+    paymentLinkId: (link as any).id,
+    paymentLink,
+  };
+}
+
 

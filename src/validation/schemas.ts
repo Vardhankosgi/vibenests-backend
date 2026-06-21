@@ -52,12 +52,19 @@ export const adminBookingSchema = z.object({
   eventType: z.string().min(2),
   addOns: z.array(z.number()).optional(),
   date: z.string().min(8),
-  timeSlots: z.array(z.string()).min(1),
+  // Some admin flows send a single `timeSlot` (string). Others send `timeSlots` (array).
+  // Accept either and normalize later.
+  timeSlots: z.array(z.string()).min(1).optional(),
+  timeSlot: z.string().optional(),
   guestFirstName: z.string().min(1),
   guestLastName: z.string().min(1),
   guestEmail: z.string().email(),
   guestPhone: z.string().min(6),
   persons: z.number().int().positive().optional(),
   totalAmount: z.number().min(0),
-});
+}).refine((data) => {
+  const slotsOk = Array.isArray(data.timeSlots) && data.timeSlots.length > 0;
+  const slotOk = typeof data.timeSlot === 'string' && data.timeSlot.trim().length > 0;
+  return slotsOk || slotOk;
+}, { message: 'timeSlot/timeSlots is required' });
 

@@ -2,7 +2,7 @@ import { AppDataSource } from '../data-source';
 import { Booking } from '../entities/Booking';
 import { Payment } from '../entities/Payment';
 import { adminCreateBooking } from './bookings.service';
-import { createRazorpayOrder } from './payments.service';
+import { createRazorpayPaymentLink } from './razorpay-link.service';
 import { sendPaymentSuccessNotifications } from './payments.service';
 
 const bookingRepo = () => AppDataSource.getRepository(Booking);
@@ -30,20 +30,25 @@ export async function adminCreateRazorpayLink(input: AdminCreateRazorpayLinkInpu
   // 1) Create booking but do NOT confirm it yet.
   // Current adminCreateBooking confirms immediately, so we create booking by temporarily using it,
   // then we immediately mark it as pending/unpaid.
-  const booking = (await adminCreateBooking({
+  const allBookings = await adminCreateBooking({
     suiteId: input.suiteId,
     eventType: input.eventType,
     addOns: input.addOns,
     date: input.date,
+    // adminCreateBooking expects either timeSlots[] or timeSlot (single)
+    timeSlots: [input.timeSlot],
     timeSlot: input.timeSlot,
-    endTimeSlot: input.endTimeSlot,
     guestFirstName: input.guestFirstName,
     guestLastName: input.guestLastName,
     guestEmail: input.guestEmail,
     guestPhone: input.guestPhone,
     persons: input.persons,
     totalAmount: input.totalAmount,
-  })) as Booking;
+  });
+
+  const booking = (allBookings && allBookings.length ? allBookings[0] : undefined) as unknown as Booking;
+  if (!booking) throw new Error('Failed to create booking for razorpay link');
+
 
 
   // 2) Convert to pending payment (so suite will be considered not confirmed until payment success).
@@ -55,20 +60,30 @@ export async function adminCreateRazorpayLink(input: AdminCreateRazorpayLinkInpu
 
   await bookingRepo().save(booking as any);
 
-  // 3) Create razorpay order + payment record.
+  // 3) Create Razorpay payment link + payment record.
   const amount = Number(input.totalAmount);
-  const created = await createRazorpayOrder(booking.id, amount, 'razorpay');
+  const { paymentLinkId, paymentLink } = await createRazorpayPaymentLink({
+    amount,
+    bookingId: booking.id,
+    customer: {
+      name: `${input.guestFirstName} ${input.guestLastName}`.trim(),
+      email: input.guestEmail,
+      phone: input.guestPhone,
+    },
+  });
 
-  // 4) Razorpay Checkout is not a simple static URL; frontend needs to open checkout.
-  // To satisfy the "copyable link" requirement, we return the backend URL that can open checkout.
-  // We'll implement a frontend/admin page later; for now we return a payments-links route.
-  const paymentLink = `${process.env.FRONTEND_ORIGIN || ''}/payments/razorpay-link/${created.orderId}?bookingId=${booking.id}&paymentId=${created.payment.id}`;
+  const payment = paymentRepo().create({
+    bookingId: booking.id,
+    amount,
+    method: 'razorpay',
+    provider: 'razorpay',
+    status: 'pending',
+    providerOrderId: paymentLinkId,
+    paymentLink,
+  });
+  const savedPayment = await paymentRepo().save(payment);
 
-  // Store the payment link on the payment record (DB column)
-  created.payment.paymentLink = paymentLink;
-  await paymentRepo().save(created.payment);
-
-  return { booking, paymentLink, payment: created.payment };
+  return { booking, paymentLink, payment: savedPayment };
 
 }
 

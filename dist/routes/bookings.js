@@ -138,6 +138,30 @@ router.get('/:id', async (req, res) => {
             order: { createdAt: 'DESC' },
         });
         booking.refundRequest = refundRequest ?? null;
+        // Attach payment records for this booking (Payment table)
+        // Frontend can use it to show payments + paymentLink (only displayed if stored in Payment.paymentLink)
+        try {
+            const paymentRepo = data_source_1.AppDataSource.getRepository(Payment_1.Payment);
+            const payments = await paymentRepo.find({
+                where: { bookingId: booking.id },
+                order: { createdAt: 'DESC' },
+            });
+            const normalizedPayments = payments.map((payment) => ({ ...payment }));
+            const paymentLinks = normalizedPayments
+                .filter((payment) => payment.paymentLink)
+                .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            booking.bookedBy = booking.bookedBy === 'admin' ? 'admin' : 'guest';
+            booking.payments = normalizedPayments;
+            booking.latestPayment = normalizedPayments?.[0] ?? null;
+            booking.adminPaymentLink =
+                user.role === 'admin' && booking.bookedBy === 'admin'
+                    ? paymentLinks[0]?.paymentLink ?? null
+                    : null;
+        }
+        catch (e) {
+            // best-effort; don't break booking details page
+            console.warn('Failed to attach payments to booking:', e?.message);
+        }
         res.json(booking);
     }
     catch (err) {
@@ -181,7 +205,9 @@ router.post('/admin', (0, auth_1.requireRole)('admin'), (0, validate_1.validateB
             eventType: p.eventType,
             addOns: (p.addOns || []).map(String),
             date: p.date,
-            timeSlots: p.timeSlots,
+            // Frontend admin flow sends `timeSlot` (single) not `timeSlots` (array)
+            // Keep backward compatibility by preferring `timeSlots` if present.
+            timeSlots: Array.isArray(p.timeSlots) ? p.timeSlots : (p.timeSlot ? [String(p.timeSlot)] : []),
             guestFirstName: p.guestFirstName,
             guestLastName: p.guestLastName,
             guestEmail: p.guestEmail,

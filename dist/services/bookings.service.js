@@ -58,7 +58,25 @@ const generateUniqueOrderId = async (bookingRepo) => {
             return code;
     }
 };
+function normalizeTimeSlots(input) {
+    if (Array.isArray(input)) {
+        return input.map(String).map((s) => s.trim()).filter(Boolean);
+    }
+    if (typeof input === 'string') {
+        // Accept comma-separated payloads like: "09:00 AM,10:00 AM"
+        return input
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+    }
+    return [];
+}
 const createBooking = async (payload) => {
+    // Normalize timeSlots in case frontend sends a string (or missing) instead of string[]
+    // This prevents: "payload.timeSlots is not iterable"
+    payload.timeSlots = normalizeTimeSlots(payload.timeSlots);
+    if (!payload.timeSlots.length)
+        throw new Error('timeSlots must contain at least 1 slot');
     const bookingRepo = repo();
     const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
     const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
@@ -215,6 +233,12 @@ const adminCreateBooking = async (payload) => {
     const userRepo = data_source_1.AppDataSource.getRepository(User_1.User);
     const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
     const addonRepo = data_source_1.AppDataSource.getRepository(AddOn_1.AddOn);
+    // Normalize timeSlots in case frontend sends a string (or missing) instead of string[].
+    // Prevents: "payload.timeSlots is not iterable".
+    payload.timeSlots = normalizeTimeSlots(payload.timeSlots ?? payload.timeSlot);
+    if (!Array.isArray(payload.timeSlots) || payload.timeSlots.length === 0) {
+        throw new Error('timeSlots must contain at least 1 slot');
+    }
     const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
     for (const ts of payload.timeSlots) {
         const exists = await bookingRepo.findOne({
@@ -247,41 +271,21 @@ const adminCreateBooking = async (payload) => {
             email: payload.guestEmail,
             phone: payload.guestPhone,
             role: 'customer',
-            isVerified: true,
-            isActive: true,
+            isVerified: false,
+            isActive: false,
         });
         guestUser = await userRepo.save(guestUser);
     }
     const orderId = await generateUniqueOrderId(bookingRepo);
-    const booking = bookingRepo.create({
-        orderId,
-        user: { id: guestUser.id },
-        userId: guestUser.id,
-        suiteId: payload.suiteId,
-        eventType: payload.eventType,
-        addOns: payload.addOns || [],
-        date: payload.date,
-        timeSlot: payload.timeSlot,
-        endTimeSlot: payload.endTimeSlot,
-        persons: payload.persons ?? 1,
-        guestFirstName: payload.guestFirstName,
-        guestLastName: payload.guestLastName,
-        guestEmail: payload.guestEmail,
-        guestPhone: payload.guestPhone,
-        totalAmount: payload.totalAmount,
-        status: 'confirmed',
-        bookedBy: 'admin',
-        paymentStatus: 'success',
-        fullPaymentReceived: true,
-    });
-    const savedBooking = await bookingRepo.save(booking);
-    // ── Resolve suite name & addon names for email ────────────────────────────
-    const numSlots = payload.timeSlots.length;
-    const perSlotTotalAmount = payload.totalAmount / numSlots;
-    const createdBookings = [];
+    // ── Resolve suite for endTimeSlot calculation ─────────────────────────────
     const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
     const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
-    for (const ts of payload.timeSlots) {
+    const numSlots = (payload.timeSlots ?? []).length;
+    const perSlotTotalAmount = payload.totalAmount / numSlots;
+    const createdBookings = [];
+    // ── Create bookings (one booking per timeslot). No extra “initial booking object”.
+    // This avoids wrong payload fields/suite usage and prevents runtime crashes.
+    for (const ts of payload.timeSlots ?? []) {
         let endTimeSlot = '';
         if (suite) {
             endTimeSlot = computeEndTimeSlot(suite, ts);
@@ -301,6 +305,7 @@ const adminCreateBooking = async (payload) => {
             guestEmail: payload.guestEmail,
             guestPhone: payload.guestPhone,
             totalAmount: perSlotTotalAmount,
+            bookedBy: 'admin',
             status: 'confirmed',
             paymentStatus: 'success',
             fullPaymentReceived: true,
@@ -323,7 +328,7 @@ const adminCreateBooking = async (payload) => {
         bookingId: representativeBooking.id,
         suiteName,
         date: payload.date,
-        startTime: payload.timeSlots.join(', '),
+        startTime: (payload.timeSlots ?? []).join(', '),
         endTime: '',
         occasion: payload.eventType,
         addOns: addonNames,

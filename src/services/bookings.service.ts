@@ -24,8 +24,26 @@ const generateUniqueOrderId = async (bookingRepo: any): Promise<string> => {
   }
 };
 
+function normalizeTimeSlots(input: unknown): string[] {
+  if (Array.isArray(input)) {
+    return input.map(String).map((s) => s.trim()).filter(Boolean);
+  }
+
+  if (typeof input === 'string') {
+    // Accept comma-separated payloads like: "09:00 AM,10:00 AM"
+    return input
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+
 export const createBooking = async (payload: {
   userId: number;
+
   suiteId: number;
   suiteName?: string;
   eventType: string;
@@ -43,14 +61,20 @@ export const createBooking = async (payload: {
   advanceAmount?: number;
   couponCode?: string;
 }) => {
+  // Normalize timeSlots in case frontend sends a string (or missing) instead of string[]
+  // This prevents: "payload.timeSlots is not iterable"
+  payload.timeSlots = normalizeTimeSlots((payload as any).timeSlots);
+  if (!payload.timeSlots.length) throw new Error('timeSlots must contain at least 1 slot');
+
   const bookingRepo = repo();
   const suiteRepo = AppDataSource.getRepository(Suite);
   const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+
   const suiteName = suite?.name ?? payload.suiteName ?? `Suite ${payload.suiteId}`;
 
   if (payload.suiteId !== 0) {
     const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
-    for (const ts of payload.timeSlots) {
+  for (const ts of (payload as any).timeSlots) {
       const exists = await bookingRepo.findOne({
         where: {
           suiteId: payload.suiteId,
@@ -208,7 +232,9 @@ export const adminCreateBooking = async (payload: {
   eventType: string;
   addOns?: string[];
   date: string;
-  timeSlots: string[];
+  // Accept either `timeSlots` or (legacy) `timeSlot` and normalize.
+  timeSlots?: string[];
+  timeSlot?: string;
   guestFirstName: string;
   guestLastName: string;
   guestEmail: string;
@@ -217,14 +243,22 @@ export const adminCreateBooking = async (payload: {
   totalAmount: number;
 }) => {
 
+
   const bookingRepo = repo();
   const userRepo = AppDataSource.getRepository(User);
   const suiteRepo = AppDataSource.getRepository(Suite);
   const addonRepo = AppDataSource.getRepository(AddOn);
 
+  // Normalize timeSlots in case frontend sends a string (or missing) instead of string[].
+  // Prevents: "payload.timeSlots is not iterable".
+  (payload as any).timeSlots = normalizeTimeSlots((payload as any).timeSlots ?? (payload as any).timeSlot);
+  if (!Array.isArray((payload as any).timeSlots) || (payload as any).timeSlots.length === 0) {
+    throw new Error('timeSlots must contain at least 1 slot');
+  }
+
   const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
 
-  for (const ts of payload.timeSlots) {
+  for (const ts of (payload as any).timeSlots) {
     const exists = await bookingRepo.findOne({
       where: {
         suiteId: payload.suiteId,
@@ -262,42 +296,19 @@ export const adminCreateBooking = async (payload: {
   }
 
   const orderId = await generateUniqueOrderId(bookingRepo);
-  const booking = bookingRepo.create({
-    orderId,
-    user: { id: guestUser.id } as User,
-    userId: guestUser.id,
-    suiteId: payload.suiteId,
-    eventType: payload.eventType,
-    addOns: payload.addOns || [],
-    date: payload.date,
-    timeSlot: payload.timeSlot,
-    endTimeSlot: payload.endTimeSlot,
-    persons: payload.persons ?? 1,
-    guestFirstName: payload.guestFirstName,
-    guestLastName: payload.guestLastName,
-    guestEmail: payload.guestEmail,
-    guestPhone: payload.guestPhone,
-    totalAmount: payload.totalAmount,
-    status: 'confirmed',
-    bookedBy: 'admin',
 
-    paymentStatus: 'success',
-    fullPaymentReceived: true,
-
-  } as any);
-
-
-  const savedBooking = await bookingRepo.save(booking) as unknown as Booking;
-
-  // ── Resolve suite name & addon names for email ────────────────────────────
-  const numSlots = payload.timeSlots.length;
-  const perSlotTotalAmount = payload.totalAmount / numSlots;
-  const createdBookings: any[] = [];
-  
+  // ── Resolve suite for endTimeSlot calculation ─────────────────────────────
   const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
   const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
 
-  for (const ts of payload.timeSlots) {
+  const numSlots = (payload.timeSlots ?? []).length;
+  const perSlotTotalAmount = payload.totalAmount / numSlots;
+  const createdBookings: any[] = [];
+
+  // ── Create bookings (one booking per timeslot). No extra “initial booking object”.
+  // This avoids wrong payload fields/suite usage and prevents runtime crashes.
+
+  for (const ts of payload.timeSlots ?? []) {
     let endTimeSlot = '';
     if (suite) {
       endTimeSlot = computeEndTimeSlot(suite, ts);
@@ -317,6 +328,7 @@ export const adminCreateBooking = async (payload: {
       guestEmail: payload.guestEmail,
       guestPhone: payload.guestPhone,
       totalAmount: perSlotTotalAmount,
+      bookedBy: 'admin' as any,
       status: 'confirmed',
       paymentStatus: 'success',
       fullPaymentReceived: true,
@@ -342,7 +354,7 @@ export const adminCreateBooking = async (payload: {
     bookingId: representativeBooking.id,
     suiteName,
     date: payload.date,
-    startTime: payload.timeSlots.join(', '),
+    startTime: (payload.timeSlots ?? []).join(', '),
     endTime: '',
     occasion: payload.eventType,
     addOns: addonNames,

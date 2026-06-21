@@ -127,11 +127,38 @@ router.get('/:id', async (req: any, res) => {
     });
     (booking as any).refundRequest = refundRequest ?? null;
 
+    // Attach payment records for this booking (Payment table)
+    // Frontend can use it to show payments + paymentLink (only displayed if stored in Payment.paymentLink)
+    try {
+      const paymentRepo = AppDataSource.getRepository(Payment);
+      const payments = await paymentRepo.find({
+        where: { bookingId: booking.id },
+        order: { createdAt: 'DESC' },
+      });
+      const normalizedPayments = payments.map((payment: any) => ({ ...payment }));
+      const paymentLinks = normalizedPayments
+        .filter((payment: any) => payment.paymentLink)
+        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      (booking as any).bookedBy = (booking as any).bookedBy === 'admin' ? 'admin' : 'guest';
+      (booking as any).payments = normalizedPayments;
+      (booking as any).latestPayment = normalizedPayments?.[0] ?? null;
+      (booking as any).adminPaymentLink =
+        user.role === 'admin' && (booking as any).bookedBy === 'admin'
+          ? paymentLinks[0]?.paymentLink ?? null
+          : null;
+
+    } catch (e: any) {
+      // best-effort; don't break booking details page
+      console.warn('Failed to attach payments to booking:', e?.message);
+    }
+
     res.json(booking);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
 });
+
 
 router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
   try {
@@ -165,12 +192,14 @@ router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
 router.post('/admin', requireRole('admin'), validateBody(adminBookingSchema), async (req: any, res) => {
   try {
     const p = req.body;
-    const bookings = await adminCreateBooking({
+const bookings = await adminCreateBooking({
       suiteId: p.suiteId,
       eventType: p.eventType,
       addOns: (p.addOns || []).map(String),
       date: p.date,
-      timeSlots: p.timeSlots,
+      // Frontend admin flow sends `timeSlot` (single) not `timeSlots` (array)
+      // Keep backward compatibility by preferring `timeSlots` if present.
+      timeSlots: Array.isArray(p.timeSlots) ? p.timeSlots : (p.timeSlot ? [String(p.timeSlot)] : []),
       guestFirstName: p.guestFirstName,
       guestLastName: p.guestLastName,
       guestEmail: p.guestEmail,

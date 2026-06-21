@@ -15,8 +15,6 @@ function getRazorpayClient(): Razorpay {
   return new Razorpay({ key_id: keyId, key_secret: keySecret });
 }
 
-// Public helper for shared admin links (no auth).
-// Given bookingId/paymentId/orderId (from the shared URL), returns Razorpay checkout options.
 router.post('/payments/create-order-for-link', async (req: any, res) => {
   try {
     const { bookingId, paymentId, orderId } = req.body || {};
@@ -62,6 +60,49 @@ router.post('/payments/create-order-for-link', async (req: any, res) => {
     });
   } catch (err: any) {
     return res.status(400).json({ message: err?.message || 'Failed to create razorpay checkout for link' });
+  }
+});
+
+router.post('/payments/link-callback', async (req: any, res) => {
+  try {
+    const { paymentId, paymentLinkId, status } = req.body || {};
+    if (!paymentId || !paymentLinkId || status !== 'paid') {
+      return res.status(400).json({ message: 'Valid Razorpay payment link callback data is required' });
+    }
+
+    const paymentRepo = AppDataSource.getRepository(Payment);
+    let payment = await paymentRepo.findOne({ where: { providerPaymentId: paymentId } });
+    if (!payment) {
+      payment = await paymentRepo.findOne({ where: { providerOrderId: paymentLinkId } });
+    }
+
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment record not found' });
+    }
+
+    if (payment.status === 'success') {
+      return res.status(200).json({ success: true, alreadyConfirmed: true });
+    }
+
+    const client = getRazorpayClient();
+    const razorpayPayment = await client.payments.fetch(paymentId);
+    const razorpayStatus = (razorpayPayment as any).status;
+
+    if (razorpayStatus !== 'captured') {
+      return res.status(409).json({ message: 'Razorpay payment is not captured yet' });
+    }
+
+    const { verifyPayment } = await import('../services/payments.service');
+    await verifyPayment(payment.id, {
+      status: 'success',
+      providerPaymentId: paymentId,
+      providerOrderId: paymentLinkId,
+      providerSignature: '',
+    });
+
+    return res.status(200).json({ success: true });
+  } catch (err: any) {
+    return res.status(400).json({ message: err?.message || 'Failed to process Razorpay payment link callback' });
   }
 });
 

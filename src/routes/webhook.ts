@@ -154,7 +154,7 @@ router.post('/webhook/razorpay', express.json({ type: 'application/json' }), asy
     const { verifyPayment } = await import('../services/payments.service');
 
     // If payment captured/success => success; else failed.
-    const isSuccess = String(event).toLowerCase().includes('captured') || String(event).toLowerCase().includes('authorized') || String(event).toLowerCase().includes('payment.success');
+    const isSuccess = String(event).toLowerCase().includes('captured') || String(event).toLowerCase().includes('authorized') || String(event).toLowerCase().includes('payment.success') || String(event).toLowerCase().includes('paid');
 
     await verifyPayment(Number(targetPayment.id), {
       status: isSuccess ? 'success' : 'failed',

@@ -3,10 +3,9 @@ import { requireRole } from '../middleware/auth';
 import { AppDataSource } from '../data-source';
 import { Payment } from '../entities/Payment';
 import { Booking } from '../entities/Booking';
-import { createRazorpayOrder } from '../services/payments.service';
 import { sendEmail } from '../services/notifications.service';
 
-import { createRazorpayHostedCheckoutLink } from '../services/razorpay-link.service';
+import { createRazorpayPaymentLink } from '../services/razorpay-link.service';
 
 const router = express.Router();
 
@@ -25,19 +24,36 @@ router.post('/admin/razorpay-link', requireRole('admin'), async (req: any, res) 
     const booking = await bookingRepo.findOneBy({ id: Number(bookingId) });
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
 
-    const receipt = `rcpt_${bookingId}_${Date.now()}`;
-
-    // Create Razorpay hosted checkout link (best-effort)
-    const { paymentLink, orderId } = await createRazorpayHostedCheckoutLink({
+    const { paymentLinkId, paymentLink } = await createRazorpayPaymentLink({
       amount: Number(amount),
-      receipt,
       bookingId: Number(bookingId),
+      customer: {
+        name: `${booking.guestFirstName ?? ''} ${booking.guestLastName ?? ''}`.trim(),
+        email: booking.guestEmail,
+        phone: booking.guestPhone,
+      },
     });
 
-    // Create a Payment record using existing createRazorpayOrder logic
-    // (keeps internal consistency even if link is order-based)
-    const method = 'razorpay';
-    await createRazorpayOrder(Number(bookingId), Number(amount), method);
+    const paymentRepo = AppDataSource.getRepository(Payment);
+    const payment = paymentRepo.create({
+      bookingId: Number(bookingId),
+      amount: Number(amount),
+      method: 'razorpay',
+      provider: 'razorpay',
+      status: 'pending',
+      providerOrderId: paymentLinkId,
+      paymentLink,
+    });
+    const savedPayment = await paymentRepo.save(payment);
+
+    booking.paymentMode = 'razorpay' as any;
+    booking.bookedBy = 'admin' as any;
+    if (!['cancelled', 'completed', 'refunded'].includes(String(booking.status))) {
+      booking.status = 'pending' as any;
+      booking.paymentStatus = 'pending' as any;
+      booking.fullPaymentReceived = false;
+    }
+    await AppDataSource.getRepository(Booking).save(booking);
 
     // Email payment link (WhatsApp will be handled later in next iteration)
     const paymentSubject = `Pay for your booking #VN${bookingId} – VibeNests`;
@@ -65,7 +81,7 @@ router.post('/admin/razorpay-link', requireRole('admin'), async (req: any, res) 
 
     await sendEmail(email, paymentSubject, `Pay Now - VibeNests (Booking #VN${bookingId})`, paymentHtml);
 
-    res.status(201).json({ paymentLink, orderId });
+    res.status(201).json({ paymentLink, paymentLinkId, paymentId: savedPayment.id });
   } catch (err: any) {
     res.status(400).json({ message: err.message || 'Failed to create payment link' });
   }
