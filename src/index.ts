@@ -9,16 +9,16 @@ import { seedLegacyUsersReferralCodes } from './services/referrals.service';
 
 dotenv.config();
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 
 async function seedAdmin() {
   const repo = AppDataSource.getRepository(User);
   const exists = await repo.findOneBy({ email: 'admin@vibenests.com' });
   if (!exists) {
-    const hash = await bcrypt.hash('admin1234', 10);
-    const admin = repo.create({ fullName: 'Admin', email: 'admin@vibenests.com', password: hash, role: 'admin', isVerified: true, isActive: true });
+    const hash = await bcrypt.hash('admin@1234', 10);
+    const admin = repo.create({ fullName: 'Admin', email: 'vibenestsmeetingpoint@gmail.com', phone: '9000201011', password: hash, role: 'admin', isVerified: true, isActive: true });
     await repo.save(admin);
-    console.log('Admin seeded: admin@vibenests.com / admin1234');
+    console.log('Admin seeded: vibenestsmeetingpoint@gmail.com / admin@1234');
   }
 }
 
@@ -81,7 +81,7 @@ AppDataSource.initialize()
     await seedLegacyUsersReferralCodes();
     startOfferCronJobs();
     app.listen(PORT, () => {
-      console.log(`Server started on http://localhost:${PORT}`);
+      console.log(`Server started on ${PORT}`);
     });
   })
   .catch((err) => {
