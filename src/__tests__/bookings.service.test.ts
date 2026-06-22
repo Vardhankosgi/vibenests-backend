@@ -11,6 +11,9 @@ describe('bookings.service', () => {
       if (opt?.where?.id) return { id: opt.where.id };
       return null;
     });
+    mockRepo.find = jest.fn(async () => [
+      { id: 10, user: { id: 1, email: 'alice@example.com', fullName: 'Alice' } }
+    ]);
     mockRepo.create = jest.fn((x: any) => x);
     mockRepo.save = jest.fn(async (x: any) => ({ id: 10, ...x }));
     jest.spyOn(AppDataSource, 'getRepository').mockReturnValue(mockRepo as any);
@@ -30,13 +33,13 @@ describe('bookings.service', () => {
     };
     await expect(
       createBooking(bookingPayload)
-    ).rejects.toThrow('Slot already booked');
+    ).rejects.toThrow('already booked');
   });
 
   test('createBooking saves booking when slot free', async () => {
     // findOne defaults to returning null for availability checks
     const res = (await createBooking({ userId: 1, suiteId: 1, eventType: 'Birthday', date: '2026-06-10', timeSlots: ['18:00-22:00'] })) as any;
-    expect(res.id).toBe(10);
+    expect(res[0].id).toBe(10);
     expect(mockRepo.save).toHaveBeenCalled();
   });
 });

@@ -17,12 +17,12 @@ describe('validation schemas', () => {
   });
 
   test('bookingCreateSchema - valid', () => {
-    const data = { suiteId: 1, date: '2026-06-10', timeSlot: '18:00-22:00' };
+    const data = { suiteId: 1, date: '2026-06-10', timeSlots: ['18:00-22:00'] };
     expect(() => bookingCreateSchema.parse(data)).not.toThrow();
   });
 
   test('bookingCreateSchema - invalid suiteId', () => {
-    const data = { suiteId: -5, date: '2026-06-10', timeSlot: '18:00-22:00' };
+    const data = { suiteId: -5, date: '2026-06-10', timeSlots: ['18:00-22:00'] };
     expect(() => bookingCreateSchema.parse(data)).toThrow();
   });
 });

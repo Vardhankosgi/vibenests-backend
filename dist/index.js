@@ -12,15 +12,15 @@ const MembershipPlan_1 = require("./entities/MembershipPlan");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const referrals_service_1 = require("./services/referrals.service");
 dotenv_1.default.config();
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 async function seedAdmin() {
     const repo = data_source_1.AppDataSource.getRepository(User_1.User);
     const exists = await repo.findOneBy({ email: 'admin@vibenests.com' });
     if (!exists) {
-        const hash = await bcrypt_1.default.hash('admin1234', 10);
-        const admin = repo.create({ fullName: 'Admin', email: 'admin@vibenests.com', password: hash, role: 'admin', isVerified: true, isActive: true });
+        const hash = await bcrypt_1.default.hash('admin@1234', 10);
+        const admin = repo.create({ fullName: 'Admin', email: 'vibenestsmeetingpoint@gmail.com', phone: '9000201011', password: hash, role: 'admin', isVerified: true, isActive: true });
         await repo.save(admin);
-        console.log('Admin seeded: admin@vibenests.com / admin1234');
+        console.log('Admin seeded: vibenestsmeetingpoint@gmail.com / admin@1234');
     }
 }
 async function seedMembershipPlans() {
@@ -79,7 +79,7 @@ data_source_1.AppDataSource.initialize()
     await (0, referrals_service_1.seedLegacyUsersReferralCodes)();
     (0, offerSync_cron_1.startOfferCronJobs)();
     app_1.default.listen(PORT, () => {
-        console.log(`Server started on http://localhost:${PORT}`);
+        console.log(`Server started on ${PORT}`);
     });
 })
     .catch((err) => {
