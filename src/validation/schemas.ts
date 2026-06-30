@@ -58,7 +58,7 @@ export const adminBookingSchema = z.object({
   timeSlot: z.string().optional(),
   guestFirstName: z.string().min(1),
   guestLastName: z.string().min(1),
-  guestEmail: z.string().email(),
+  guestEmail: z.string().email().optional().or(z.literal('')),
   guestPhone: z.string().min(6),
   persons: z.number().int().positive().optional(),
   totalAmount: z.number().min(0),

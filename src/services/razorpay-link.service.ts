@@ -70,11 +70,12 @@ export async function createRazorpayPaymentLink(opts: {
   };
 
   if (customer?.name || customer?.email || customer?.phone) {
-    payload.customer = {
-      name: customer.name ?? '',
-      email: customer.email ?? '',
-      contact: customer.phone ?? '',
-    };
+    payload.customer = {};
+    if (customer.name) payload.customer.name = customer.name;
+    if (customer.email && customer.email.trim()) {
+      payload.customer.email = customer.email.trim();
+    }
+    if (customer.phone) payload.customer.contact = customer.phone;
   }
 
   const link = await (client as any).paymentLink.create(payload);

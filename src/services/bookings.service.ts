@@ -281,12 +281,21 @@ export const adminCreateBooking = async (payload: {
   }
 
   const fullName = `${payload.guestFirstName} ${payload.guestLastName}`.trim();
-  let guestUser = await userRepo.findOneBy({ email: payload.guestEmail });
+  const guestEmailVal = payload.guestEmail?.trim();
+  let guestUser: User | null = null;
+
+  if (guestEmailVal) {
+    guestUser = await userRepo.findOneBy({ email: guestEmailVal });
+  } else if (payload.guestPhone?.trim()) {
+    guestUser = await userRepo.findOneBy({ phone: payload.guestPhone.trim() });
+  }
+
   const isNewUser = !guestUser;
   if (!guestUser) {
+    const finalEmail = guestEmailVal || '';
     guestUser = userRepo.create({
       fullName,
-      email: payload.guestEmail,
+      email: finalEmail,
       phone: payload.guestPhone,
       role: 'customer',
       isVerified: false,

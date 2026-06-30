@@ -230,7 +230,7 @@ router.post('/admin/create-razorpay-link', requireRole('admin'), async (req: any
       totalAmount,
     } = req.body || {};
 
-    if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestEmail || !guestPhone || !totalAmount) {
+    if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestPhone || !totalAmount) {
       return res.status(400).json({ message: 'Missing required booking fields' });
     }
 

@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 5000;
 
 async function seedAdmin() {
   const repo = AppDataSource.getRepository(User);
-  const exists = await repo.findOneBy({ email: 'admin@vibenests.com' });
+  const exists = await repo.findOneBy({ email: 'admin@vibenests.in' });
   if (!exists) {
     const hash = await bcrypt.hash('admin@1234', 10);
     const admin = repo.create({ fullName: 'Admin', email: 'vibenestsmeetingpoint@gmail.com', phone: '9000201011', password: hash, role: 'admin', isVerified: true, isActive: true });
