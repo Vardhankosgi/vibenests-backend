@@ -45,6 +45,8 @@ router.get('/', async (req: any, res) => {
 
     // Attach latest refund request for each booking
     const bookingIds = (bookings as any[]).map((b) => b.id);
+
+    // Attach latest refund request for each booking
     const refundRepo = AppDataSource.getRepository(RefundCalculation);
     const refunds = bookingIds.length ? await refundRepo.find({ where: { bookingId: In(bookingIds) } }) : [];
     const refundMap = new Map<number, RefundCalculation>();
@@ -54,6 +56,11 @@ router.get('/', async (req: any, res) => {
       }
     }
 
+    // Attach if booking has a review
+    const reviewRepo = AppDataSource.getRepository('Review');
+    const reviews = bookingIds.length ? await reviewRepo.find({ where: { bookingId: In(bookingIds) } }) : [];
+    const reviewedBookingIds = new Set(reviews.map((r: any) => r.bookingId).filter(Boolean));
+
     const enhanced = (bookings as any[]).map((b) => {
       const suite = suiteMap.get(b.suiteId);
       const images = (suite as any)?.images ?? [];
@@ -62,6 +69,7 @@ router.get('/', async (req: any, res) => {
         suiteImages: Array.isArray(images) ? images : [],
         image: Array.isArray(images) && images.length ? images[0] : undefined,
         refundRequest: refundMap.get(b.id) ?? null,
+        hasReview: reviewedBookingIds.has(b.id),
       };
     });
 

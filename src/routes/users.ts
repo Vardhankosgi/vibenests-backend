@@ -43,6 +43,64 @@ router.get('/', authenticate, requireRole('admin'), async (req, res) => {
   }
 });
 
+
+router.get('/me', authenticate, async (req: any, res) => {
+  try {
+    const user = await repo().findOneBy({ id: req.user.id });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone ?? '',
+      role: user.role,
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
+router.patch('/me', authenticate, async (req: any, res) => {
+  try {
+    const user = await repo().findOneBy({ id: req.user.id });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const { fullName, email, phone, dateOfBirth, marriageDate } = req.body;
+
+    if (fullName) user.fullName = fullName;
+    if (email) {
+      const emailTrim = email.trim().toLowerCase();
+      if (!user.email || emailTrim !== user.email.toLowerCase()) {
+        const emailExists = await repo().findOneBy({ email: emailTrim });
+        if (emailExists) {
+          return res.status(400).json({ message: 'This email is already in use by another account.' });
+        }
+        user.email = emailTrim;
+      }
+    }
+    if (phone !== undefined) user.phone = phone;
+    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
+    if (marriageDate !== undefined) user.marriageDate = marriageDate;
+
+    await repo().save(user);
+
+    res.json({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone ?? '',
+      role: user.role,
+      dateOfBirth: user.dateOfBirth ?? null,
+      marriageDate: user.marriageDate ?? null,
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+
 router.get('/:id', authenticate, requireRole('admin'), async (req, res) => {
   try {
     const user = await repo().findOneBy({ id: Number(req.params.id) });
@@ -182,52 +240,6 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req, res) => {
   }
 });
 
-
-router.get('/me', authenticate, async (req: any, res) => {
-  try {
-    const user = await repo().findOneBy({ id: req.user.id });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone ?? '',
-      role: user.role,
-      dateOfBirth: user.dateOfBirth ?? null,
-      marriageDate: user.marriageDate ?? null,
-    });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-
-router.patch('/me', authenticate, async (req: any, res) => {
-  try {
-    const user = await repo().findOneBy({ id: req.user.id });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const { fullName, phone, dateOfBirth, marriageDate } = req.body;
-
-    if (fullName) user.fullName = fullName;
-    if (phone !== undefined) user.phone = phone;
-    if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth;
-    if (marriageDate !== undefined) user.marriageDate = marriageDate;
-
-    await repo().save(user);
-
-    res.json({
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone ?? '',
-      role: user.role,
-      dateOfBirth: user.dateOfBirth ?? null,
-      marriageDate: user.marriageDate ?? null,
-    });
-  } catch (err: any) {
-    res.status(500).json({ message: err.message });
-  }
-});
 
 
 export default router;

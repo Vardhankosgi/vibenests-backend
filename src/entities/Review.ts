@@ -34,6 +34,12 @@ export class Review {
   @Column({ type: 'text', nullable: true })
   comment?: string;
 
+  @Column({ nullable: true })
+  bookingId?: number;
+
+  @Column({ nullable: true })
+  suiteId?: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 }

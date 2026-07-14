@@ -9,8 +9,8 @@ export class User {
   @Column()
   fullName!: string;
 
-  @Column({ unique: true })
-  email!: string;
+  @Column({ nullable: true, unique: true })
+  email?: string;
 
   @Column({ nullable: true, unique: true })
   phone?: string;

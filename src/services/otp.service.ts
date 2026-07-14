@@ -38,12 +38,8 @@ export const sendOtp = async (phone: string) => {
     ]
   });
 
-  if (!existingUser) {
-    throw new Error('This phone number is not registered. Please sign up first.');
-  }
-
-  if (!existingUser.isActive) {
-    throw new Error('Your account is not active. Please verify your account.');
+  if (existingUser && !existingUser.isActive) {
+    throw new Error('Your account is not active. Please contact support.');
   }
 
   // invalidate old unused OTPs for this phone
@@ -59,7 +55,7 @@ export const sendOtp = async (phone: string) => {
   const message = `Your VibeNests OTP is ${code}. Valid for 5 minutes. Do not share this with anyone.`;
 
   // Prefer channel based on user record, keep backward-compatible fallback.
-  if (existingUser.email && !existingUser.email.endsWith('@phone.local')) {
+  if (existingUser && existingUser.email && !existingUser.email.endsWith('@phone.local')) {
     const emailResult = await sendEmail(existingUser.email, 'VibeNests — Your OTP', message);
     if (!emailResult.ok) {
       throw new Error(`Failed to send OTP email: ${emailResult.error || 'Unknown SMTP error'}`);
@@ -114,11 +110,20 @@ export const verifyOtp = async (phone: string, code: string) => {
     ]
   });
 
+  let isNewUser = false;
   if (!user) {
-    throw new Error('This phone number is not registered. Please sign up first.');
+    user = userRepo().create({
+      fullName: 'New Guest',
+      phone: normalised,
+      role: 'customer',
+      isVerified: true,
+      isActive: true,
+    });
+    user = await userRepo().save(user);
+    isNewUser = true;
   }
 
-  if (!user.isActive) throw new Error('Your account is not active. Please verify your account.');
+  if (!user.isActive) throw new Error('Your account is not active. Please contact support.');
   if (!user.isVerified) {
     user.isVerified = true;
     user = await userRepo().save(user);
@@ -129,6 +134,7 @@ export const verifyOtp = async (phone: string, code: string) => {
   return {
     accessToken,
     refreshToken: refreshEntity.token,
+    isNewUser,
     user: { 
       id: user.id, 
       fullName: user.fullName, 
