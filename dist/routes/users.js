@@ -76,6 +76,64 @@ router.get('/', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (re
         res.status(500).json({ message: err.message });
     }
 });
+router.get('/me', auth_1.authenticate, async (req, res) => {
+    try {
+        const user = await repo().findOneBy({ id: req.user.id });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        res.json({
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone ?? '',
+            role: user.role,
+            dateOfBirth: user.dateOfBirth ?? null,
+            marriageDate: user.marriageDate ?? null,
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+router.patch('/me', auth_1.authenticate, async (req, res) => {
+    try {
+        const user = await repo().findOneBy({ id: req.user.id });
+        if (!user)
+            return res.status(404).json({ message: 'User not found' });
+        const { fullName, email, phone, dateOfBirth, marriageDate } = req.body;
+        if (fullName)
+            user.fullName = fullName;
+        if (email) {
+            const emailTrim = email.trim().toLowerCase();
+            if (!user.email || emailTrim !== user.email.toLowerCase()) {
+                const emailExists = await repo().findOneBy({ email: emailTrim });
+                if (emailExists) {
+                    return res.status(400).json({ message: 'This email is already in use by another account.' });
+                }
+                user.email = emailTrim;
+            }
+        }
+        if (phone !== undefined)
+            user.phone = phone;
+        if (dateOfBirth !== undefined)
+            user.dateOfBirth = dateOfBirth;
+        if (marriageDate !== undefined)
+            user.marriageDate = marriageDate;
+        await repo().save(user);
+        res.json({
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone ?? '',
+            role: user.role,
+            dateOfBirth: user.dateOfBirth ?? null,
+            marriageDate: user.marriageDate ?? null,
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
 router.get('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
     try {
         const user = await repo().findOneBy({ id: Number(req.params.id) });
@@ -143,7 +201,7 @@ router.post('/:id/resend-setup', auth_1.authenticate, (0, auth_1.requireRole)('a
         if (!user)
             return res.status(404).json({ message: 'User not found' });
         const token = await (0, auth_service_1.generatePasswordResetToken)(user.id);
-        await (0, notifications_service_1.sendPasswordSetupEmail)({ to: user.email, guestName: user.fullName, resetToken: token });
+        await (0, notifications_service_1.sendPasswordSetupEmail)({ to: user.email || '', guestName: user.fullName, resetToken: token });
         res.json({ message: 'Setup email resent' });
     }
     catch (err) {
@@ -212,54 +270,6 @@ router.delete('/:id', auth_1.authenticate, (0, auth_1.requireRole)('admin'), asy
             await manager.getRepository(User_1.User).remove(user);
         });
         res.json({ message: 'User deleted' });
-    }
-    catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-router.get('/me', auth_1.authenticate, async (req, res) => {
-    try {
-        const user = await repo().findOneBy({ id: req.user.id });
-        if (!user)
-            return res.status(404).json({ message: 'User not found' });
-        res.json({
-            id: user.id,
-            fullName: user.fullName,
-            email: user.email,
-            phone: user.phone ?? '',
-            role: user.role,
-            dateOfBirth: user.dateOfBirth ?? null,
-            marriageDate: user.marriageDate ?? null,
-        });
-    }
-    catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-router.patch('/me', auth_1.authenticate, async (req, res) => {
-    try {
-        const user = await repo().findOneBy({ id: req.user.id });
-        if (!user)
-            return res.status(404).json({ message: 'User not found' });
-        const { fullName, phone, dateOfBirth, marriageDate } = req.body;
-        if (fullName)
-            user.fullName = fullName;
-        if (phone !== undefined)
-            user.phone = phone;
-        if (dateOfBirth !== undefined)
-            user.dateOfBirth = dateOfBirth;
-        if (marriageDate !== undefined)
-            user.marriageDate = marriageDate;
-        await repo().save(user);
-        res.json({
-            id: user.id,
-            fullName: user.fullName,
-            email: user.email,
-            phone: user.phone ?? '',
-            role: user.role,
-            dateOfBirth: user.dateOfBirth ?? null,
-            marriageDate: user.marriageDate ?? null,
-        });
     }
     catch (err) {
         res.status(500).json({ message: err.message });

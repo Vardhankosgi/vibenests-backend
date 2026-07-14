@@ -143,7 +143,7 @@ router.get('/whatsapp/logs', authenticate, requireRole('admin'), async (req: any
 
       if (userMatch) {
         guestName = userMatch.fullName;
-        guestEmail = userMatch.email;
+        guestEmail = userMatch.email || 'No email';
       } else if (bookingMatch) {
         guestName = `${bookingMatch.guestFirstName ?? ''} ${bookingMatch.guestLastName ?? ''}`.trim() || 'Guest';
         guestEmail = bookingMatch.guestEmail || 'No email';

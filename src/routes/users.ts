@@ -166,7 +166,7 @@ router.post('/:id/resend-setup', authenticate, requireRole('admin'), async (req,
     const user = await repo().findOneBy({ id: Number(req.params.id) });
     if (!user) return res.status(404).json({ message: 'User not found' });
     const token = await generatePasswordResetToken(user.id);
-    await sendPasswordSetupEmail({ to: user.email, guestName: user.fullName, resetToken: token });
+    await sendPasswordSetupEmail({ to: user.email || '', guestName: user.fullName, resetToken: token });
     res.json({ message: 'Setup email resent' });
   } catch (err: any) {
     res.status(500).json({ message: err.message });

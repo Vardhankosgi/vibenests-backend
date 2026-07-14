@@ -66,6 +66,7 @@ router.get('/', async (req, res) => {
         }
         // Attach latest refund request for each booking
         const bookingIds = bookings.map((b) => b.id);
+        // Attach latest refund request for each booking
         const refundRepo = data_source_1.AppDataSource.getRepository(RefundCalculation_1.RefundCalculation);
         const refunds = bookingIds.length ? await refundRepo.find({ where: { bookingId: (0, typeorm_1.In)(bookingIds) } }) : [];
         const refundMap = new Map();
@@ -74,6 +75,10 @@ router.get('/', async (req, res) => {
                 refundMap.set(r.bookingId, r);
             }
         }
+        // Attach if booking has a review
+        const reviewRepo = data_source_1.AppDataSource.getRepository('Review');
+        const reviews = bookingIds.length ? await reviewRepo.find({ where: { bookingId: (0, typeorm_1.In)(bookingIds) } }) : [];
+        const reviewedBookingIds = new Set(reviews.map((r) => r.bookingId).filter(Boolean));
         const enhanced = bookings.map((b) => {
             const suite = suiteMap.get(b.suiteId);
             const images = suite?.images ?? [];
@@ -82,6 +87,7 @@ router.get('/', async (req, res) => {
                 suiteImages: Array.isArray(images) ? images : [],
                 image: Array.isArray(images) && images.length ? images[0] : undefined,
                 refundRequest: refundMap.get(b.id) ?? null,
+                hasReview: reviewedBookingIds.has(b.id),
             };
         });
         res.json(enhanced);
@@ -224,7 +230,7 @@ router.post('/admin', (0, auth_1.requireRole)('admin'), (0, validate_1.validateB
 router.post('/admin/create-razorpay-link', (0, auth_1.requireRole)('admin'), async (req, res) => {
     try {
         const { suiteId, eventType, addOns, date, timeSlot, endTimeSlot, guestFirstName, guestLastName, guestEmail, guestPhone, totalAmount, } = req.body || {};
-        if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestEmail || !guestPhone || !totalAmount) {
+        if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestPhone || !totalAmount) {
             return res.status(400).json({ message: 'Missing required booking fields' });
         }
         const { booking, paymentLink } = await (0, razorpay_admin_link_service_1.adminCreateRazorpayLink)({
