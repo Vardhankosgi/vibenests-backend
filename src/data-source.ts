@@ -37,6 +37,14 @@ export const AppDataSource = new DataSource({
   url: process.env.DATABASE_URL,
   synchronize: true,
   logging: false,
+  ssl: {
+    rejectUnauthorized: false,
+  },
+  extra: {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  },
   entities: [
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
     Offer, Coupon, LiveCelebrationSetting, GlobalSetting,
