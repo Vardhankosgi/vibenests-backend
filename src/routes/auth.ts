@@ -31,15 +31,18 @@ router.post('/register', validateBody(registerSchema), async (req, res) => {
 });
 
 router.post('/login', validateBody(loginSchema), async (req, res) => {
+  console.log(`[LOGIN INITIATED] Attempting login for email: ${req.body.email}`);
   try {
     const { email, password } = req.body;
     const data = await loginUser(email, password);
+    console.log(`[LOGIN SUCCESS] Successfully generated tokens for: ${email}`);
     res.json({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       user: { id: data.user.id, email: data.user.email, role: data.user.role, fullName: data.user.fullName, dateOfBirth: data.user.dateOfBirth ?? null },
     });
   } catch (err: any) {
+    console.error(`[LOGIN ERROR] Failed for ${req.body.email}:`, err.message);
     res.status(400).json({ message: err.message });
   }
 });
