@@ -6,7 +6,7 @@ import { createResetTokenForUser, changePasswordForUser } from '../services/pass
 import { authenticate } from '../middleware/auth';
 import { sendOtp, verifyOtp } from '../services/otp.service';
 import { validateBody } from '../middleware/validate';
-import { registerSchema, loginSchema } from '../validation/schemas';
+import { registerSchema, loginSchema, sendOtpSchema, verifyOtpSchema } from '../validation/schemas';
 import { rateLimiter } from '../middleware/rateLimit';
 import crypto from 'crypto';
 import { AppDataSource } from '../data-source';
@@ -16,15 +16,8 @@ const router = express.Router();
 
 router.post('/register', validateBody(registerSchema), async (req, res) => {
   try {
-    const user = await registerUser(req.body);
-    res.status(201).json({ 
-      id: user.id, 
-      email: user.email, 
-      role: user.role, 
-      fullName: user.fullName, 
-      dateOfBirth: user.dateOfBirth ?? null,
-      marriageDate: user.marriageDate ?? null,
-    });
+    const data = await registerUser(req.body);
+    res.status(201).json(data);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
@@ -47,22 +40,21 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
   }
 });
 
-router.post('/otp/send', async (req, res) => {
+router.post('/otp/send', validateBody(sendOtpSchema), async (req, res) => {
   try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ message: 'phone is required' });
-    const result = await sendOtp(phone);
+    const { phone, email } = req.body;
+    const result = await sendOtp(phone || email);
     res.json(result);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }
 });
 
-router.post('/otp/verify', async (req, res) => {
+router.post('/otp/verify', validateBody(verifyOtpSchema), async (req, res) => {
   try {
-    const { phone, otp } = req.body;
-    if (!phone || !otp) return res.status(400).json({ message: 'phone and otp are required' });
-    const data = await verifyOtp(phone, otp);
+    const { phone, email, target, otp } = req.body;
+    const recipient = phone || email || target;
+    const data = await verifyOtp(recipient, otp);
     res.json(data);
   } catch (err: any) {
     res.status(400).json({ message: err.message });

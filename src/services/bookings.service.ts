@@ -12,6 +12,7 @@ import { sendBookingConfirmationEmail, sendBookingReceivedEmail, sendPasswordSet
 import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
 import { Coupon } from '../entities/Coupon';
 import { validateCoupon } from './coupons.service';
+import { createAppNotification } from './app-notifications.service';
 
 
 const repo = () => AppDataSource.getRepository(Booking);
@@ -221,6 +222,25 @@ export const createBooking = async (payload: {
       console.warn('Failed to send booking received email:', err);
     }
   }
+
+  // Create real-time in-app notifications
+  createAppNotification({
+    userId: payload.userId,
+    targetRole: 'customer',
+    title: 'Booking Created',
+    message: `Your booking #${representativeBooking.id} for ${suiteName} on ${payload.date} is created.`,
+    type: 'booking',
+    referenceId: representativeBooking.id,
+  });
+
+  createAppNotification({
+    userId: null,
+    targetRole: 'admin',
+    title: 'New Booking Received',
+    message: `${guestName} booked ${suiteName} on ${payload.date} for ₹${payload.totalAmount ?? 0}.`,
+    type: 'booking',
+    referenceId: representativeBooking.id,
+  });
 
   // Return the first booking or the whole array. We return an array, but express routes might expect one.
   return finalBookings;

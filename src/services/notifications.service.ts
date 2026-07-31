@@ -12,7 +12,17 @@ const SMTP_FROM = process.env.SMTP_FROM || 'no-reply@vibenests.local';
 let transporter: nodemailer.Transporter | null = null;
 if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
   try {
-    transporter = nodemailer.createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: SMTP_USER, pass: SMTP_PASS } });
+    transporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+      connectionTimeout: 5000,
+      socketTimeout: 10000,
+      auth: { user: SMTP_USER, pass: SMTP_PASS },
+    });
   } catch (err) {
     console.warn('SMTP transporter init failed', err);
   }

@@ -21,6 +21,7 @@ router.post('/create-order', authenticate, async (req: any, res) => {
       orderId: result.orderId,
       amount: result.payment.amount,
       keyId: result.keyId,
+      devMode: result.devMode,
     });
   } catch (err: any) {
     res.status(400).json({ message: err.message });

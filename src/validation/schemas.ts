@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 export const registerSchema = z.object({
-  fullName: z.string().min(2),
-  email: z.string().email(),
-  phone: z.string().min(6).optional(),
-  password: z.string().min(6),
-  dateOfBirth: z.string().min(8),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  phone: z.string().min(10, 'Phone number must be at least 10 digits').optional(),
+  password: z.string().optional(),
+  dateOfBirth: z.string().min(8, 'Date of birth is required'),
   marriageDate: z.string().optional().nullable(),
   referralCode: z.string().optional().nullable(),
 });
@@ -13,6 +13,22 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+});
+
+export const sendOtpSchema = z.object({
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+}).refine((data) => Boolean(data.phone || data.email), {
+  message: 'Either phone number or email is required.',
+});
+
+export const verifyOtpSchema = z.object({
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  target: z.string().optional(),
+  otp: z.string().length(4, 'OTP must be exactly 4 digits'),
+}).refine((data) => Boolean(data.phone || data.email || data.target), {
+  message: 'Either phone number, email, or target is required.',
 });
 
 export const bookingCreateSchema = z.object({

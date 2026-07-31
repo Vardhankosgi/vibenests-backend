@@ -5,8 +5,11 @@ export class OtpCode {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
-  phone!: string;
+  @Column({ nullable: true })
+  phone?: string;
+
+  @Column({ nullable: true })
+  email?: string;
 
   @Column()
   code!: string;

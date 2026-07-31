@@ -12,6 +12,7 @@ import paymentsLinksPublicRoutes from './routes/payments-links-public';
 
 
 import notificationsRoutes from './routes/notifications';
+import appNotificationsRoutes from './routes/app-notifications';
 import reportsRoutes from './routes/reports';
 import offersRoutes from './routes/offers';
 import couponsRoutes from './routes/coupons';
@@ -50,6 +51,7 @@ app.use('/payments-links-public', paymentsLinksPublicRoutes);
 
 
 app.use('/notifications', notificationsRoutes);
+app.use('/app-notifications', appNotificationsRoutes);
 app.use('/reports', reportsRoutes);
 
 // New modules

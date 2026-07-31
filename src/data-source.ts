@@ -19,6 +19,7 @@ import { OfferConfiguration } from './entities/OfferConfiguration';
 import { OtpCode } from './entities/OtpCode';
 import { WhatsAppMessage } from './entities/WhatsAppMessage';
 import { WhatsAppEvent } from './entities/WhatsAppEvent';
+import { AppNotification } from './entities/AppNotification';
 
 import { MembershipPlan } from './entities/MembershipPlan';
 import { UserMembership } from './entities/UserMembership';
@@ -32,25 +33,22 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const dbUrl = process.env.DATABASE_URL || '';
+const isLocalhost = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  url: process.env.DATABASE_URL,
+  url: dbUrl,
   synchronize: true,
   logging: false,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-  extra: {
-    ssl: {
-      rejectUnauthorized: false,
-    },
-  },
+  ssl: isLocalhost ? false : { rejectUnauthorized: false },
+  extra: isLocalhost ? {} : { ssl: { rejectUnauthorized: false } },
   entities: [
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
     Offer, Coupon, LiveCelebrationSetting, GlobalSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
     MembershipPlan, UserMembership, Translation, Review,
-    OtpCode, WhatsAppMessage, WhatsAppEvent,
+    OtpCode, WhatsAppMessage, WhatsAppEvent, AppNotification,
     ReferralCode, ReferralRelationship, ReferralReward, ReferralTransaction,
   ],
   migrations: [],
