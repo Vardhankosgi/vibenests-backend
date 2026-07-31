@@ -164,7 +164,13 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
     console.log(`[OTP DISPATCH LOG] 📧 Email OTP for "${normalisedEmail}": ${code}`);
 
     // Dispatch email asynchronously so HTTP API responds instantly (< 50ms)
-    sendEmail(normalisedEmail, emailSubject, textMessage, htmlMessage).catch((err) => {
+    sendEmail(normalisedEmail, emailSubject, textMessage, htmlMessage).then((result) => {
+      if (!result.ok) {
+        console.error(`[OTP EMAIL ERROR] Failed to send email to ${normalisedEmail}:`, result.error);
+      } else {
+        console.log(`[OTP EMAIL SUCCESS] Email delivered successfully to ${normalisedEmail}`);
+      }
+    }).catch((err) => {
       console.error('[OTP EMAIL ASYNC ERROR]', err);
     });
 

@@ -19,12 +19,15 @@ if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
       pool: true,
       maxConnections: 5,
       maxMessages: 100,
-      connectionTimeout: 5000,
-      socketTimeout: 10000,
+      connectionTimeout: 15000,
+      socketTimeout: 20000,
+      tls: {
+        rejectUnauthorized: false,
+      },
       auth: { user: SMTP_USER, pass: SMTP_PASS },
     });
   } catch (err) {
-    console.warn('SMTP transporter init failed', err);
+    console.error('[SMTP INIT ERROR] Transporter init failed:', err);
   }
 }
 
@@ -34,7 +37,7 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
       await transporter.sendMail({ from: SMTP_FROM, to, subject, text: body, html: html ?? `<p>${body}</p>` });
       return { ok: true };
     } catch (err: any) {
-      console.warn('SMTP send failed', err?.message ?? err);
+      console.error('[SMTP SEND ERROR] Failed to deliver email via Nodemailer:', err?.message ?? err);
       return { ok: false, error: err?.message ?? err };
     }
   }
