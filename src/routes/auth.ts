@@ -41,19 +41,27 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
 });
 
 router.post('/otp/send', validateBody(sendOtpSchema), async (req, res) => {
+  const target = req.body.email || req.body.phone;
+  console.log(`[API /otp/send] Sending OTP request for: ${target}`);
   try {
     const result = await sendOtp(req.body);
+    console.log(`[API /otp/send] Success response for ${target}:`, result);
     res.json(result);
   } catch (err: any) {
+    console.error(`[API /otp/send ERROR] Failed for ${target}:`, err.message);
     res.status(400).json({ message: err.message });
   }
 });
 
 router.post('/otp/verify', validateBody(verifyOtpSchema), async (req, res) => {
+  const target = req.body.email || req.body.phone || req.body.target;
+  console.log(`[API /otp/verify] Verification attempt for ${target} with OTP: ${req.body.otp}`);
   try {
     const data = await verifyOtp(req.body, req.body.otp);
+    console.log(`[API /otp/verify] Verification successful for ${target}`);
     res.json(data);
   } catch (err: any) {
+    console.error(`[API /otp/verify ERROR] Verification failed for ${target}:`, err.message);
     res.status(400).json({ message: err.message });
   }
 });

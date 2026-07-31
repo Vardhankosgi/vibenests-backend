@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import app from './app';
 import { AppDataSource } from './data-source';
 import { startOfferCronJobs } from './cron/offerSync.cron';
+import { seedAdminCredentials } from './services/auth.service';
 
 dotenv.config();
 
@@ -10,6 +11,7 @@ const PORT = process.env.PORT || 5000;
 AppDataSource.initialize()
   .then(async () => {
     console.log('Database connected');
+    await seedAdminCredentials();
     startOfferCronJobs();
 
     function startServer() {

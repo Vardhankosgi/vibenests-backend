@@ -202,45 +202,10 @@ export const createBooking = async (payload: {
     } catch (err) {
       console.warn('Failed to send package credit booking confirmation email:', err);
     }
-  } else {
-    try {
-      if (guestEmail) {
-        sendBookingReceivedEmail({
-          to: guestEmail,
-          guestName,
-          bookingId: representativeBooking.id,
-          suiteName,
-          date: payload.date,
-          startTime: payload.timeSlots.join(', '),
-          endTime: '',
-          occasion: payload.eventType,
-          addOns: payload.addOns || [],
-          totalAmount: payload.totalAmount ?? 0,
-        }).catch((e) => console.warn('Booking received email failed:', e?.message));
-      }
-    } catch (err) {
-      console.warn('Failed to send booking received email:', err);
-    }
   }
 
-  // Create real-time in-app notifications
-  createAppNotification({
-    userId: payload.userId,
-    targetRole: 'customer',
-    title: 'Booking Created',
-    message: `Your booking #${representativeBooking.id} for ${suiteName} on ${payload.date} is created.`,
-    type: 'booking',
-    referenceId: representativeBooking.id,
-  });
-
-  createAppNotification({
-    userId: null,
-    targetRole: 'admin',
-    title: 'New Booking Received',
-    message: `${guestName} booked ${suiteName} on ${payload.date} for ₹${payload.totalAmount ?? 0}.`,
-    type: 'booking',
-    referenceId: representativeBooking.id,
-  });
+  // Return the first booking or the whole array. We return an array, but express routes might expect one.
+  return finalBookings;
 
   // Return the first booking or the whole array. We return an array, but express routes might expect one.
   return finalBookings;
@@ -652,6 +617,12 @@ export const updateBookingPaymentStatus = async (id: number, paymentStatus: Book
   const booking = await repo().findOneBy({ id });
   if (!booking) throw new Error('Booking not found');
   booking.paymentStatus = paymentStatus;
+  if (paymentStatus === 'success') {
+    if (booking.paymentMode === 'pay_now' || booking.paymentMode === 'package_credit' || booking.paymentMode === 'package_purchase') {
+      booking.status = 'confirmed';
+      booking.fullPaymentReceived = true;
+    }
+  }
   return repo().save(booking);
 };
 

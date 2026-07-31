@@ -47,7 +47,7 @@ export async function upsertSettings(settingsMap: Record<string, any>): Promise<
     // For now, default group to 'general' and isPublic to false unless known.
     // We could define a map of public keys. Let's make appearance and basic profile public.
     const publicKeys = [
-      'businessName', 'email', 'phone', 'address', 'currency', 'language',
+      'businessName', 'logoUrl', 'email', 'phone', 'address', 'currency', 'language',
       'theme', 'accentColor', 'compactMode', 'animationsEnabled', 'whatsappNumber'
     ];
     const isPublic = publicKeys.includes(key);

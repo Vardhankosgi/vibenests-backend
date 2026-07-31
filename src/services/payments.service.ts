@@ -149,9 +149,9 @@ export const createRazorpayOrder = async (bookingId: number, amount: number, met
     const errorMsg = err?.error?.description || err?.message || 'Unable to create Razorpay order';
     console.warn('[RAZORPAY WARNING] Order creation failed:', errorMsg);
 
-    // Development fallback: if live/test credentials fail on localhost, provide dev mode flag
-    if (process.env.NODE_ENV !== 'production' || !keyId) {
-      console.log('[RAZORPAY DEV FALLBACK] Returning devMode order for local testing...');
+    // Development fallback: if live/test credentials fail or if dev fallback enabled
+    if (process.env.NODE_ENV !== 'production' || !keyId || process.env.RAZORPAY_DEV_FALLBACK === 'true') {
+      console.log('[RAZORPAY DEV FALLBACK] Returning devMode order for testing...');
       const devOrderId = `order_dev_${Date.now()}_${saved.id}`;
       saved.providerOrderId = devOrderId;
       await repo().save(saved);
@@ -240,26 +240,8 @@ export const verifyRazorpayPayment = async (
     }
   }
 
-  // Send confirmation email + WhatsApp concurrently (best-effort)
+  // Send confirmation email + WhatsApp + in-app notification concurrently (best-effort)
   await sendPaymentSuccessNotifications(payment);
-
-  createAppNotification({
-    userId: primaryBooking?.userId ?? null,
-    targetRole: 'customer',
-    title: 'Payment Successful',
-    message: `Payment of ₹${payment.amount} for booking #${payment.bookingId} was received successfully.`,
-    type: 'payment',
-    referenceId: payment.bookingId,
-  });
-
-  createAppNotification({
-    userId: null,
-    targetRole: 'admin',
-    title: 'Payment Received',
-    message: `Payment of ₹${payment.amount} received for booking #${payment.bookingId}.`,
-    type: 'payment',
-    referenceId: payment.bookingId,
-  });
 
   return payment;
 };
@@ -363,7 +345,25 @@ export const sendPaymentSuccessNotifications = async (payment: Payment) => {
       guestLastName: booking.guestLastName,
     } as any);
 
-    await Promise.allSettled([emailPromise, whatsappPromise]);
+    const appNotifCustomer = createAppNotification({
+      userId: booking.userId ?? user?.id ?? null,
+      targetRole: 'customer',
+      title: 'Booking Confirmed',
+      message: `Your booking #${payment.bookingId} for ${booking.suiteName || 'Suite'} on ${booking.date || 'selected date'} is confirmed. Payment of ₹${Number(payment.amount).toLocaleString('en-IN')} received.`,
+      type: 'booking',
+      referenceId: payment.bookingId,
+    });
+
+    const appNotifAdmin = createAppNotification({
+      userId: null,
+      targetRole: 'admin',
+      title: 'New Confirmed Booking',
+      message: `${name} paid ₹${Number(payment.amount).toLocaleString('en-IN')} and confirmed booking #${payment.bookingId}.`,
+      type: 'booking',
+      referenceId: payment.bookingId,
+    });
+
+    await Promise.allSettled([emailPromise, whatsappPromise, appNotifCustomer, appNotifAdmin]);
   } catch (err) {
     console.warn('Payment success notification failed', err);
   }

@@ -209,3 +209,40 @@ export const generatePasswordResetToken = async (userId: number): Promise<string
 
   return rawToken;
 };
+
+export const seedAdminCredentials = async () => {
+  try {
+    const repo = userRepo();
+    const adminAccounts = [
+      { email: 'admin@vibenests.com', fullName: 'Super Admin', phone: '9876543210', password: 'Admin@VibeNests2026' },
+      { email: 'vibenestsmeetingpoint@gmail.com', fullName: 'VibeNests Admin', phone: '9876543211', password: 'Admin@VibeNests2026' },
+    ];
+
+    for (const item of adminAccounts) {
+      let existing = await repo.findOne({ where: [{ email: item.email }, { phone: item.phone }] });
+      const hash = await bcrypt.hash(item.password, 10);
+
+      if (!existing) {
+        existing = repo.create({
+          email: item.email,
+          fullName: item.fullName,
+          phone: item.phone,
+          password: hash,
+          role: 'admin',
+          isActive: true,
+          isVerified: true,
+          dateOfBirth: '1990-01-01',
+        });
+      } else {
+        existing.role = 'admin';
+        existing.isActive = true;
+        existing.isVerified = true;
+        existing.password = hash;
+      }
+      await repo.save(existing);
+    }
+    console.log('[ADMIN SEED] Successfully seeded Admin accounts in database.');
+  } catch (err: any) {
+    console.warn('[ADMIN SEED ERROR] Failed seeding admin accounts:', err?.message);
+  }
+};

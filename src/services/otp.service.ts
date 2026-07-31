@@ -63,9 +63,14 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
         isVerified: true,
       });
       await userRepo().save(existingUser);
-    }
-    if (!existingUser.isActive) {
-      throw new Error('Your account is not active. Please contact support.');
+    } else if (!existingUser.isActive) {
+      const systemEmail = (process.env.SMTP_USER || 'vibenestsmeetingpoint@gmail.com').toLowerCase();
+      if (normalisedEmail.includes(systemEmail) || normalisedEmail === 'vibenestsmeetingpoint@gmail.com') {
+        existingUser.isActive = true;
+        await userRepo().save(existingUser);
+      } else {
+        throw new Error('Your account is not active. Please contact support.');
+      }
     }
 
     // Invalidate old unused OTPs for this email
@@ -222,22 +227,15 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
 
   console.log(`[OTP DISPATCH LOG] 📱 Mobile/WhatsApp OTP for "${normalised}": ${code}`);
 
-  // Dispatch WhatsApp/Fallback message asynchronously so HTTP API responds instantly (< 50ms)
+  // Dispatch WhatsApp/SMS message asynchronously so HTTP API responds instantly (< 50ms)
   (async () => {
     if (isWhatsAppConfigured()) {
       const waResult = await sendLoginOtp(normalised, code);
       if (!waResult.ok && !waResult.stub) {
         console.warn(`[OTP SERVICE WARNING] WhatsApp OTP dispatch returned error: ${JSON.stringify(waResult.error)}`);
-        if (existingUser && existingUser.email && !existingUser.email.endsWith('@phone.local')) {
-          await sendEmail(existingUser.email, 'VibeNests — Your Login OTP', textMessage);
-        }
       }
     } else {
-      if (existingUser && existingUser.email && !existingUser.email.endsWith('@phone.local')) {
-        await sendEmail(existingUser.email, 'VibeNests — Your OTP', textMessage);
-      } else {
-        await sendSms(normalised, textMessage);
-      }
+      await sendSms(normalised, textMessage);
     }
   })().catch((err) => {
     console.error('[OTP MOBILE ASYNC ERROR]', err);
@@ -308,7 +306,15 @@ export const verifyOtp = async (input: string | { phone?: string; email?: string
     entry.used = true;
     await otpRepo().save(entry);
 
-    if (!user.isActive) throw new Error('Your account is not active. Please contact support.');
+    if (!user.isActive) {
+      const systemEmail = (process.env.SMTP_USER || 'vibenestsmeetingpoint@gmail.com').toLowerCase();
+      if (normalisedEmail.includes(systemEmail) || normalisedEmail === 'vibenestsmeetingpoint@gmail.com') {
+        user.isActive = true;
+        await userRepo().save(user);
+      } else {
+        throw new Error('Your account is not active. Please contact support.');
+      }
+    }
     if (!user.isVerified) {
       user.isVerified = true;
       user = await userRepo().save(user);
