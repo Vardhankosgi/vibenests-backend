@@ -42,8 +42,7 @@ router.post('/login', validateBody(loginSchema), async (req, res) => {
 
 router.post('/otp/send', validateBody(sendOtpSchema), async (req, res) => {
   try {
-    const { phone, email } = req.body;
-    const result = await sendOtp(phone || email);
+    const result = await sendOtp(req.body);
     res.json(result);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
@@ -52,9 +51,7 @@ router.post('/otp/send', validateBody(sendOtpSchema), async (req, res) => {
 
 router.post('/otp/verify', validateBody(verifyOtpSchema), async (req, res) => {
   try {
-    const { phone, email, target, otp } = req.body;
-    const recipient = phone || email || target;
-    const data = await verifyOtp(recipient, otp);
+    const data = await verifyOtp(req.body, req.body.otp);
     res.json(data);
   } catch (err: any) {
     res.status(400).json({ message: err.message });
