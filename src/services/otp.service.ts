@@ -161,8 +161,6 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
     </body>
     </html>`;
 
-    console.log(`[OTP DISPATCH LOG] 📧 Email OTP for "${normalisedEmail}": ${code}`);
-
     // Dispatch email asynchronously so HTTP API responds instantly (< 50ms)
     sendEmail(normalisedEmail, emailSubject, textMessage, htmlMessage).then((result) => {
       if (!result.ok) {
@@ -177,7 +175,6 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
     return {
       message: 'OTP sent to your email address',
       channel: 'email',
-      ...(isDev && { otp: code }),
     };
   }
 
@@ -231,12 +228,11 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
 
   const textMessage = `Your VibeNests OTP is ${code}. Valid for 5 minutes. Do not share this with anyone.`;
 
-  console.log(`[OTP DISPATCH LOG] 📱 Mobile/WhatsApp OTP for "${normalised}": ${code}`);
-
   // Dispatch WhatsApp/SMS message asynchronously so HTTP API responds instantly (< 50ms)
   (async () => {
     if (isWhatsAppConfigured()) {
-      const waResult = await sendLoginOtp(normalised, code);
+      const recipientName = existingUser?.fullName || 'Guest';
+      const waResult = await sendLoginOtp(normalised, code, recipientName);
       if (!waResult.ok && !waResult.stub) {
         console.warn(`[OTP SERVICE WARNING] WhatsApp OTP dispatch returned error: ${JSON.stringify(waResult.error)}`);
       }
@@ -250,7 +246,6 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
   return {
     message: 'OTP sent to your WhatsApp number',
     channel: 'whatsapp',
-    ...(isDev && { otp: code }),
   };
 };
 

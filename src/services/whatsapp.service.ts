@@ -196,20 +196,29 @@ export async function sendTemplateMessage(params: SendTemplateParams): Promise<W
  * Sends a Login OTP using the approved Meta WhatsApp OTP template.
  * Specially formatted for Login OTP delivery.
  */
-export async function sendLoginOtp(phone: string, otpCode: string): Promise<WhatsAppSendResult> {
+export async function sendLoginOtp(phone: string, otpCode: string, userName: string = 'Guest'): Promise<WhatsAppSendResult> {
   const config = getWhatsAppConfig();
 
+  // 'vibenests_notification' has 2 placeholders: {{1}} (Name) and {{2}} (Reference ID / OTP code)
   const components: TemplateComponent[] = [
     {
       type: 'body',
       parameters: [
         {
           type: 'text',
+          text: userName,
+        },
+        {
+          type: 'text',
           text: otpCode,
         },
       ],
     },
-    {
+  ];
+
+  // Optional: Only attach button parameters if explicitly enabled in env (for Authentication templates with URL buttons)
+  if (process.env.WHATSAPP_INCLUDE_BUTTON_PARAM === 'true') {
+    components.push({
       type: 'button',
       sub_type: 'url',
       index: '0',
@@ -219,8 +228,8 @@ export async function sendLoginOtp(phone: string, otpCode: string): Promise<What
           text: otpCode,
         },
       ],
-    },
-  ];
+    });
+  }
 
   console.log(`[WHATSAPP OTP INITIATED] Sending OTP template "${config.otpTemplateName}" to ${maskPhoneNumber(phone)}`);
 

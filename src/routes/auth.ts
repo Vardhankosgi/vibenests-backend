@@ -55,7 +55,7 @@ router.post('/otp/send', validateBody(sendOtpSchema), async (req, res) => {
 
 router.post('/otp/verify', validateBody(verifyOtpSchema), async (req, res) => {
   const target = req.body.email || req.body.phone || req.body.target;
-  console.log(`[API /otp/verify] Verification attempt for ${target} with OTP: ${req.body.otp}`);
+  console.log(`[API /otp/verify] Verification attempt for ${target}`);
   try {
     const data = await verifyOtp(req.body, req.body.otp);
     console.log(`[API /otp/verify] Verification successful for ${target}`);

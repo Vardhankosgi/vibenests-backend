@@ -115,8 +115,8 @@ describe('whatsapp.service', () => {
 
       const fetchCallBody = JSON.parse((global.fetch as jest.Mock).mock.calls[0][1].body);
       expect(fetchCallBody.to).toBe('919876543210');
-      expect(fetchCallBody.template.name).toBe('login_otp');
-      expect(fetchCallBody.template.components[0].parameters[0].text).toBe('654321');
+      expect(fetchCallBody.template.components[0].parameters[0].text).toBe('Guest');
+      expect(fetchCallBody.template.components[0].parameters[1].text).toBe('654321');
     });
 
     test('handles Meta API error response gracefully', async () => {
