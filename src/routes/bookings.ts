@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { bookingCreateSchema, adminBookingSchema } from '../validation/schemas';
+import { bookingCreateSchema, adminBookingSchema, manualBookingSchema } from '../validation/schemas';
 import { AppDataSource } from '../data-source';
 import { In } from 'typeorm';
 import { AddOn } from '../entities/AddOn';
@@ -13,6 +13,7 @@ import { RefundCalculation } from '../entities/RefundCalculation';
 import {
   createBooking,
   adminCreateBooking,
+  manualCreateBooking,
   findBookingsForUser,
   findAllBookings,
   findBookingByIdForUser,
@@ -219,6 +220,41 @@ router.post('/admin', requireRole('admin'), validateBody(adminBookingSchema), as
       couponCode: p.couponCode,
       specialOfferId: p.specialOfferId,
       discountAmount: p.discountAmount,
+    });
+    res.status(201).json({ ...bookings[0], allBookings: bookings });
+  } catch (err: any) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+router.post('/manual-entry', requireRole('admin'), validateBody(manualBookingSchema), async (req: any, res) => {
+  try {
+    const p = req.body;
+    const bookings = await manualCreateBooking({
+      suiteId: p.suiteId,
+      eventType: p.eventType,
+      addOns: p.addOns,
+      date: p.date,
+      timeSlots: Array.isArray(p.timeSlots) ? p.timeSlots : (p.timeSlot ? [String(p.timeSlot)] : []),
+      userId: p.userId,
+      guestFirstName: p.guestFirstName,
+      guestLastName: p.guestLastName,
+      guestEmail: p.guestEmail,
+      guestPhone: p.guestPhone,
+      persons: p.persons,
+      basePrice: p.basePrice,
+      addonsTotal: p.addonsTotal,
+      discountAmount: p.discountAmount,
+      taxAmount: p.taxAmount,
+      totalAmount: p.totalAmount,
+      paymentMode: p.paymentMode,
+      paymentStatus: p.paymentStatus,
+      advanceAmount: p.advanceAmount,
+      paymentReferenceId: p.paymentReferenceId,
+      staffNotes: p.staffNotes,
+      sendNotification: p.sendNotification,
+      couponCode: p.couponCode,
+      specialOfferId: p.specialOfferId,
     });
     res.status(201).json({ ...bookings[0], allBookings: bookings });
   } catch (err: any) {

@@ -89,3 +89,35 @@ export const adminBookingSchema = z.object({
   return slotsOk || slotOk;
 }, { message: 'timeSlot/timeSlots is required' });
 
+export const manualBookingSchema = z.object({
+  suiteId: z.number().int().nonnegative(),
+  eventType: z.string().min(1),
+  addOns: z.array(z.union([z.string(), z.number()])).optional(),
+  date: z.string().min(8),
+  timeSlots: z.array(z.string()).min(1).optional(),
+  timeSlot: z.string().optional(),
+  userId: z.number().optional().nullable(),
+  guestFirstName: z.string().min(1),
+  guestLastName: z.string().optional().default(''),
+  guestEmail: z.string().email().optional().or(z.literal('')).nullable(),
+  guestPhone: z.string().min(6),
+  persons: z.number().int().positive().optional().default(2),
+  basePrice: z.number().min(0).optional(),
+  addonsTotal: z.number().min(0).optional(),
+  discountAmount: z.number().min(0).optional().default(0),
+  taxAmount: z.number().min(0).optional().default(0),
+  totalAmount: z.number().min(0),
+  paymentMode: z.enum(['cash', 'upi', 'card', 'bank_transfer', 'pay_at_venue', 'pay_now']).default('cash'),
+  paymentStatus: z.enum(['success', 'partial', 'pending']).default('success'),
+  advanceAmount: z.number().min(0).optional().default(0),
+  paymentReferenceId: z.string().optional().nullable(),
+  staffNotes: z.string().optional().nullable(),
+  sendNotification: z.boolean().optional().default(true),
+  couponCode: z.string().optional().nullable(),
+  specialOfferId: z.number().int().optional().nullable(),
+}).refine((data) => {
+  const slotsOk = Array.isArray(data.timeSlots) && data.timeSlots.length > 0;
+  const slotOk = typeof data.timeSlot === 'string' && data.timeSlot.trim().length > 0;
+  return slotsOk || slotOk;
+}, { message: 'timeSlot/timeSlots is required' });
+
