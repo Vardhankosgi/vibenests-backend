@@ -34,16 +34,31 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const dbUrl = process.env.DATABASE_URL || '';
-const isLocalhost = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+const dbUrl =
+  process.env.DATABASE_URL ||
+  process.env.DATABASE_PRIVATE_URL ||
+  process.env.DATABASE_PUBLIC_URL ||
+  process.env.POSTGRES_URL ||
+  '';
+
+const isInternalOrLocal =
+  !dbUrl ||
+  dbUrl.includes('localhost') ||
+  dbUrl.includes('127.0.0.1') ||
+  dbUrl.includes('railway.internal');
+
+console.log(
+  'Connecting to Database:',
+  dbUrl ? dbUrl.replace(/:[^:@]+@/, ':****@') : '⚠️ [DATABASE_URL IS NOT FOUND IN ENVIRONMENT VARIABLES]'
+);
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url: dbUrl,
   synchronize: true,
   logging: false,
-  ssl: isLocalhost ? false : { rejectUnauthorized: false },
-  extra: isLocalhost ? {} : { ssl: { rejectUnauthorized: false } },
+  ssl: isInternalOrLocal ? false : { rejectUnauthorized: false },
+  extra: isInternalOrLocal ? {} : { ssl: { rejectUnauthorized: false } },
   entities: [
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
     Offer, OfferAssignment, Coupon, LiveCelebrationSetting, GlobalSetting,
