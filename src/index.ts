@@ -15,8 +15,8 @@ AppDataSource.initialize()
     startOfferCronJobs();
 
     function startServer() {
-      const server = app.listen(PORT as number, '127.0.0.1', () => {
-        console.log(`Server started on 127.0.0.1:${PORT}`);
+      const server = app.listen(Number(PORT), '0.0.0.0', () => {
+        console.log(`Server started on 0.0.0.0:${PORT}`);
       });
 
       server.on('error', (err: any) => {
