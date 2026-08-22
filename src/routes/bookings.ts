@@ -188,6 +188,8 @@ router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
       totalAmount: payload.totalAmount,
       paymentMode: payload.paymentMode,
       advanceAmount: payload.advanceAmount,
+      couponCode: payload.couponCode,
+      specialOfferId: payload.specialOfferId,
     });
     // Send back the first booking or the array depending on frontend expectations.
     // We will send the first one as an object but inject `bookings` array for safety.
@@ -200,7 +202,7 @@ router.post('/', validateBody(bookingCreateSchema), async (req: any, res) => {
 router.post('/admin', requireRole('admin'), validateBody(adminBookingSchema), async (req: any, res) => {
   try {
     const p = req.body;
-const bookings = await adminCreateBooking({
+    const bookings = await adminCreateBooking({
       suiteId: p.suiteId,
       eventType: p.eventType,
       addOns: (p.addOns || []).map(String),
@@ -214,6 +216,9 @@ const bookings = await adminCreateBooking({
       guestPhone: p.guestPhone,
       persons: p.persons,
       totalAmount: p.totalAmount,
+      couponCode: p.couponCode,
+      specialOfferId: p.specialOfferId,
+      discountAmount: p.discountAmount,
     });
     res.status(201).json({ ...bookings[0], allBookings: bookings });
   } catch (err: any) {
@@ -236,6 +241,9 @@ router.post('/admin/create-razorpay-link', requireRole('admin'), async (req: any
       guestEmail,
       guestPhone,
       totalAmount,
+      couponCode,
+      specialOfferId,
+      discountAmount,
     } = req.body || {};
 
     if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestPhone || !totalAmount) {
@@ -255,6 +263,9 @@ router.post('/admin/create-razorpay-link', requireRole('admin'), async (req: any
       guestPhone: String(guestPhone),
       totalAmount: Number(totalAmount),
       persons: req.body.persons,
+      couponCode: couponCode ? String(couponCode) : undefined,
+      specialOfferId: specialOfferId ? Number(specialOfferId) : undefined,
+      discountAmount: discountAmount ? Number(discountAmount) : undefined,
     });
 
 

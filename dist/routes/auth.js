@@ -18,24 +18,19 @@ const User_1 = require("../entities/User");
 const router = express_1.default.Router();
 router.post('/register', (0, validate_1.validateBody)(schemas_1.registerSchema), async (req, res) => {
     try {
-        const user = await (0, auth_service_1.registerUser)(req.body);
-        res.status(201).json({
-            id: user.id,
-            email: user.email,
-            role: user.role,
-            fullName: user.fullName,
-            dateOfBirth: user.dateOfBirth ?? null,
-            marriageDate: user.marriageDate ?? null,
-        });
+        const data = await (0, auth_service_1.registerUser)(req.body);
+        res.status(201).json(data);
     }
     catch (err) {
         res.status(400).json({ message: err.message });
     }
 });
 router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async (req, res) => {
+    console.log(`[LOGIN INITIATED] Attempting login for email: ${req.body.email}`);
     try {
         const { email, password } = req.body;
         const data = await (0, auth_service_1.loginUser)(email, password);
+        console.log(`[LOGIN SUCCESS] Successfully generated tokens for: ${email}`);
         res.json({
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
@@ -43,30 +38,33 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
         });
     }
     catch (err) {
+        console.error(`[LOGIN ERROR] Failed for ${req.body.email}:`, err.message);
         res.status(400).json({ message: err.message });
     }
 });
-router.post('/otp/send', async (req, res) => {
+router.post('/otp/send', (0, validate_1.validateBody)(schemas_1.sendOtpSchema), async (req, res) => {
+    const target = req.body.email || req.body.phone;
+    console.log(`[API /otp/send] Sending OTP request for: ${target}`);
     try {
-        const { phone } = req.body;
-        if (!phone)
-            return res.status(400).json({ message: 'phone is required' });
-        const result = await (0, otp_service_1.sendOtp)(phone);
+        const result = await (0, otp_service_1.sendOtp)(req.body);
+        console.log(`[API /otp/send] Success response for ${target}:`, result);
         res.json(result);
     }
     catch (err) {
+        console.error(`[API /otp/send ERROR] Failed for ${target}:`, err.message);
         res.status(400).json({ message: err.message });
     }
 });
-router.post('/otp/verify', async (req, res) => {
+router.post('/otp/verify', (0, validate_1.validateBody)(schemas_1.verifyOtpSchema), async (req, res) => {
+    const target = req.body.email || req.body.phone || req.body.target;
+    console.log(`[API /otp/verify] Verification attempt for ${target}`);
     try {
-        const { phone, otp } = req.body;
-        if (!phone || !otp)
-            return res.status(400).json({ message: 'phone and otp are required' });
-        const data = await (0, otp_service_1.verifyOtp)(phone, otp);
+        const data = await (0, otp_service_1.verifyOtp)(req.body, req.body.otp);
+        console.log(`[API /otp/verify] Verification successful for ${target}`);
         res.json(data);
     }
     catch (err) {
+        console.error(`[API /otp/verify ERROR] Verification failed for ${target}:`, err.message);
         res.status(400).json({ message: err.message });
     }
 });

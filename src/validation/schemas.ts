@@ -47,6 +47,8 @@ export const bookingCreateSchema = z.object({
   totalAmount: z.number().min(0).optional(),
   paymentMode: z.enum(['pay_now', 'pay_at_venue', 'package_credit', 'package_purchase']).optional(),
   advanceAmount: z.number().min(0).optional(),
+  couponCode: z.string().optional(),
+  specialOfferId: z.number().int().optional(),
 });
 
 export const celebrationPackageSchema = z.object({
@@ -78,6 +80,9 @@ export const adminBookingSchema = z.object({
   guestPhone: z.string().min(6),
   persons: z.number().int().positive().optional(),
   totalAmount: z.number().min(0),
+  couponCode: z.string().optional(),
+  specialOfferId: z.number().int().optional(),
+  discountAmount: z.number().min(0).optional(),
 }).refine((data) => {
   const slotsOk = Array.isArray(data.timeSlots) && data.timeSlots.length > 0;
   const slotOk = typeof data.timeSlot === 'string' && data.timeSlot.trim().length > 0;

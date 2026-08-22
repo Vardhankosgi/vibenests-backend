@@ -15,10 +15,23 @@ const SMTP_FROM = process.env.SMTP_FROM || 'no-reply@vibenests.local';
 let transporter = null;
 if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
     try {
-        transporter = nodemailer_1.default.createTransport({ host: SMTP_HOST, port: SMTP_PORT, secure: SMTP_PORT === 465, auth: { user: SMTP_USER, pass: SMTP_PASS } });
+        transporter = nodemailer_1.default.createTransport({
+            host: SMTP_HOST,
+            port: SMTP_PORT,
+            secure: SMTP_PORT === 465,
+            pool: true,
+            maxConnections: 5,
+            maxMessages: 100,
+            connectionTimeout: 15000,
+            socketTimeout: 20000,
+            tls: {
+                rejectUnauthorized: false,
+            },
+            auth: { user: SMTP_USER, pass: SMTP_PASS },
+        });
     }
     catch (err) {
-        console.warn('SMTP transporter init failed', err);
+        console.error('[SMTP INIT ERROR] Transporter init failed:', err);
     }
 }
 const sendEmail = async (to, subject, body, html) => {
@@ -28,7 +41,7 @@ const sendEmail = async (to, subject, body, html) => {
             return { ok: true };
         }
         catch (err) {
-            console.warn('SMTP send failed', err?.message ?? err);
+            console.error('[SMTP SEND ERROR] Failed to deliver email via Nodemailer:', err?.message ?? err);
             return { ok: false, error: err?.message ?? err };
         }
     }

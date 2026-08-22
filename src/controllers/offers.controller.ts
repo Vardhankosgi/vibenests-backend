@@ -41,3 +41,23 @@ export const activeOffers = async (_req: Request, res: Response) => {
     res.json(await svc.getActiveOffers());
   } catch (e: any) { res.status(400).json({ message: e.message }); }
 };
+
+export const mySpecialOffers = async (req: Request & { user?: any }, res: Response) => {
+  try {
+    if (!req.user?.id) {
+      return res.json([]);
+    }
+    res.json(await svc.getUserSpecialOffers(Number(req.user.id)));
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
+};
+
+export const userSpecialOffers = async (req: Request, res: Response) => {
+  try {
+    const userId = Number(req.params.userId);
+    if (!userId || isNaN(userId)) {
+      return res.json([]);
+    }
+    res.json(await svc.getUserSpecialOffers(userId));
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
+};
+

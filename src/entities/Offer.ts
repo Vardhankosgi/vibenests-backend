@@ -1,7 +1,9 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, DeleteDateColumn
+  CreateDateColumn, UpdateDateColumn, DeleteDateColumn,
+  OneToMany
 } from 'typeorm';
+import { OfferAssignment } from './OfferAssignment';
 
 export type DiscountType = 'percentage' | 'flat';
 export type OfferStatus = 'active' | 'inactive' | 'scheduled' | 'expired';
@@ -36,6 +38,15 @@ export class Offer {
   @Column('simple-array', { nullable: true })
   applicableIds?: string[];
 
+  @Column({ nullable: true })
+  suiteId?: number;
+
+  @Column({ nullable: true })
+  suiteName?: string;
+
+  @OneToMany(() => OfferAssignment, (assignment) => assignment.offer, { cascade: true })
+  assignments?: OfferAssignment[];
+
   @Column({ type: 'timestamptz' })
   startDate!: Date;
 
@@ -69,3 +80,4 @@ export class Offer {
   @DeleteDateColumn()
   deletedAt?: Date;
 }
+

@@ -61,6 +61,7 @@ export const createBooking = async (payload: {
   paymentMode?: 'pay_now' | 'pay_at_venue' | 'package_credit' | 'package_purchase';
   advanceAmount?: number;
   couponCode?: string;
+  specialOfferId?: number;
 }) => {
   // Normalize timeSlots in case frontend sends a string (or missing) instead of string[]
   // This prevents: "payload.timeSlots is not iterable"
@@ -165,6 +166,7 @@ export const createBooking = async (payload: {
       paymentStatus: isPackageCredit ? 'success' : 'pending',
       fullPaymentReceived: isPackageCredit ? true : false,
       couponCode: payload.couponCode || null,
+      specialOfferId: payload.specialOfferId ? Number(payload.specialOfferId) : null,
     } as any);
 
     const savedBooking = await bookingRepo.save(booking) as any;
@@ -226,6 +228,9 @@ export const adminCreateBooking = async (payload: {
   guestPhone: string;
   persons?: number;
   totalAmount: number;
+  couponCode?: string;
+  specialOfferId?: number;
+  discountAmount?: number;
 }) => {
 
 
@@ -322,6 +327,9 @@ export const adminCreateBooking = async (payload: {
       guestEmail: payload.guestEmail,
       guestPhone: payload.guestPhone,
       totalAmount: perSlotTotalAmount,
+      savings: payload.discountAmount || 0,
+      couponCode: payload.couponCode || undefined,
+      specialOfferId: payload.specialOfferId ? Number(payload.specialOfferId) : undefined,
       bookedBy: 'admin' as any,
       status: 'confirmed',
       paymentStatus: 'success',
@@ -341,6 +349,15 @@ export const adminCreateBooking = async (payload: {
   }
 
   const representativeBooking = createdBookings[0];
+
+  // Trigger confirmation side-effects (e.g. redeeming special offers, coupons, in-app notifications)
+  if (representativeBooking) {
+    try {
+      await handleBookingConfirmationSideEffects(representativeBooking.id);
+    } catch (e) {
+      console.warn('Booking confirmation side effects failed for admin booking:', e);
+    }
+  }
 
   sendBookingConfirmationEmail({
     to: payload.guestEmail,
@@ -688,6 +705,32 @@ export async function handleBookingConfirmationSideEffects(bookingId: number): P
         }
       } catch (err: any) {
         console.warn('Coupon usage tracking failed:', err?.message);
+      }
+    }
+
+    // 3. Process Special Offer Redemption
+    if (booking.userId) {
+      try {
+        const { redeemSpecialOffer } = require('./offers.service');
+        if (booking.specialOfferId) {
+          await redeemSpecialOffer(Number(booking.specialOfferId), Number(booking.userId), booking.id);
+        } else if (booking.suiteId) {
+          // If special offer wasn't explicitly passed, check if user had an assigned offer for this suite
+          const { OfferAssignment } = require('../entities/OfferAssignment');
+          const assignmentRepo = AppDataSource.getRepository(OfferAssignment);
+          const activeAssign = await assignmentRepo.findOne({
+            where: {
+              userId: Number(booking.userId),
+              status: 'assigned',
+            },
+            relations: ['offer'],
+          });
+          if (activeAssign && activeAssign.offer && Number(activeAssign.offer.suiteId) === Number(booking.suiteId)) {
+            await redeemSpecialOffer(activeAssign.offerId, Number(booking.userId), booking.id);
+          }
+        }
+      } catch (err: any) {
+        console.warn('Special offer redemption side effect failed:', err?.message);
       }
     }
   } catch (err: any) {

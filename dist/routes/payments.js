@@ -23,6 +23,7 @@ router.post('/create-order', auth_1.authenticate, async (req, res) => {
             orderId: result.orderId,
             amount: result.payment.amount,
             keyId: result.keyId,
+            devMode: result.devMode,
         });
     }
     catch (err) {

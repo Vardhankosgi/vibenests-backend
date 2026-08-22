@@ -25,6 +25,7 @@ const OfferConfiguration_1 = require("./entities/OfferConfiguration");
 const OtpCode_1 = require("./entities/OtpCode");
 const WhatsAppMessage_1 = require("./entities/WhatsAppMessage");
 const WhatsAppEvent_1 = require("./entities/WhatsAppEvent");
+const AppNotification_1 = require("./entities/AppNotification");
 const MembershipPlan_1 = require("./entities/MembershipPlan");
 const UserMembership_1 = require("./entities/UserMembership");
 const Translation_1 = require("./entities/Translation");
@@ -35,17 +36,21 @@ const ReferralReward_1 = require("./entities/ReferralReward");
 const ReferralTransaction_1 = require("./entities/ReferralTransaction");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
+const dbUrl = process.env.DATABASE_URL || '';
+const isLocalhost = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
 exports.AppDataSource = new typeorm_1.DataSource({
     type: 'postgres',
-    url: process.env.DATABASE_URL,
+    url: dbUrl,
     synchronize: true,
     logging: false,
+    ssl: isLocalhost ? false : { rejectUnauthorized: false },
+    extra: isLocalhost ? {} : { ssl: { rejectUnauthorized: false } },
     entities: [
         User_1.User, Booking_1.Booking, Suite_1.Suite, SuiteAvailability_1.SuiteAvailability, AddOn_1.AddOn, Payment_1.Payment, RefreshToken_1.RefreshToken,
         Offer_1.Offer, Coupon_1.Coupon, LiveCelebrationSetting_1.LiveCelebrationSetting, GlobalSetting_1.GlobalSetting,
         TaxCharge_1.TaxCharge, BookingRule_1.BookingRule, RefundCalculation_1.RefundCalculation, AuditLog_1.AuditLog, OfferConfiguration_1.OfferConfiguration,
         MembershipPlan_1.MembershipPlan, UserMembership_1.UserMembership, Translation_1.Translation, Review_1.Review,
-        OtpCode_1.OtpCode, WhatsAppMessage_1.WhatsAppMessage, WhatsAppEvent_1.WhatsAppEvent,
+        OtpCode_1.OtpCode, WhatsAppMessage_1.WhatsAppMessage, WhatsAppEvent_1.WhatsAppEvent, AppNotification_1.AppNotification,
         ReferralCode_1.ReferralCode, ReferralRelationship_1.ReferralRelationship, ReferralReward_1.ReferralReward, ReferralTransaction_1.ReferralTransaction,
     ],
     migrations: [],

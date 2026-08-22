@@ -9,8 +9,12 @@ const router = Router();
 // Public: active offers for frontend display
 router.get('/active', ctrl.activeOffers);
 
+// Authenticated user special offers
+router.get('/my-special-offers', authenticate, ctrl.mySpecialOffers);
+
 // Admin only
 router.use(authenticate, requireRole('admin'));
+router.get('/user/:userId', ctrl.userSpecialOffers);
 router.get('/', ctrl.listOffers);
 router.get('/:id', ctrl.getOffer);
 router.post('/', validateBody(offerCreateSchema), ctrl.createOffer);

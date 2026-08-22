@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generatePasswordResetToken = exports.resetPasswordWithToken = exports.logout = exports.refreshAccessToken = exports.loginUser = exports.registerUser = void 0;
+exports.seedAdminCredentials = exports.generatePasswordResetToken = exports.resetPasswordWithToken = exports.logout = exports.refreshAccessToken = exports.loginUser = exports.registerUser = void 0;
 const data_source_1 = require("../data-source");
 const User_1 = require("../entities/User");
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -17,14 +17,28 @@ const userRepo = () => data_source_1.AppDataSource.getRepository(User_1.User);
 const registerUser = async (data) => {
     const repo = userRepo();
     const normalizedEmail = data.email.trim().toLowerCase();
-    const normalizedPhone = data.phone ? data.phone.replace(/\D/g, '') : undefined;
-    const existsByEmail = await repo.findOneBy({ email: normalizedEmail });
-    if (existsByEmail)
-        throw new Error('Email already registered');
-    if (normalizedPhone) {
-        const existsByPhone = await repo.findOneBy({ phone: normalizedPhone });
-        if (existsByPhone)
-            throw new Error('Phone already registered');
+    const rawPhoneDigits = data.phone ? data.phone.replace(/\D/g, '') : undefined;
+    const last10 = rawPhoneDigits ? (rawPhoneDigits.length > 10 ? rawPhoneDigits.slice(-10) : rawPhoneDigits) : undefined;
+    let targetUser = await repo.findOneBy({ email: normalizedEmail });
+    if (last10) {
+        const existsByPhone = await repo.findOne({
+            where: [
+                { phone: last10 },
+                { phone: `91${last10}` },
+                { phone: `+91${last10}` },
+            ],
+        });
+        if (existsByPhone) {
+            if (existsByPhone.fullName === 'New Guest' || existsByPhone.fullName === 'Guest') {
+                targetUser = existsByPhone;
+            }
+            else if (!targetUser || targetUser.id !== existsByPhone.id) {
+                throw new Error('An account with this phone number already exists. Please sign in.');
+            }
+        }
+    }
+    if (targetUser && targetUser.fullName !== 'New Guest' && targetUser.fullName !== 'Guest' && targetUser.email === normalizedEmail) {
+        throw new Error('An account with this email address already exists. Please sign in.');
     }
     // Pre-validate referral code if entered
     if (data.referralCode) {
@@ -33,26 +47,35 @@ const registerUser = async (data) => {
             throw new Error(validation.message || 'Invalid referral code');
         }
     }
-    const hash = await bcrypt_1.default.hash(data.password, 10);
-    const myReferralCode = await (0, referrals_service_1.generateUniqueReferralCode)();
-    const user = repo.create({
-        fullName: data.fullName,
-        email: normalizedEmail,
-        password: hash,
-        phone: normalizedPhone,
-        dateOfBirth: data.dateOfBirth,
-        marriageDate: data.marriageDate,
-        referralCode: myReferralCode,
-    });
-    // Quick fix: allow email/password registration to log in without extra verification step.
-    user.isVerified = true;
-    user.isActive = true;
+    const hash = data.password ? await bcrypt_1.default.hash(data.password, 10) : undefined;
+    const myReferralCode = targetUser?.referralCode || (await (0, referrals_service_1.generateUniqueReferralCode)());
+    if (!targetUser) {
+        targetUser = repo.create({
+            referralCode: myReferralCode,
+        });
+    }
+    targetUser.fullName = data.fullName;
+    targetUser.email = normalizedEmail;
+    if (hash)
+        targetUser.password = hash;
+    if (rawPhoneDigits)
+        targetUser.phone = rawPhoneDigits;
+    targetUser.dateOfBirth = data.dateOfBirth;
+    if (data.marriageDate)
+        targetUser.marriageDate = data.marriageDate;
+    if (!targetUser.referralCode)
+        targetUser.referralCode = myReferralCode;
+    targetUser.isVerified = true;
+    targetUser.isActive = true;
     try {
-        const savedUser = await repo.save(user);
+        const savedUser = await repo.save(targetUser);
         // Save code to referral_codes table
         const refCodeRepo = data_source_1.AppDataSource.getRepository('ReferralCode');
-        const refCode = refCodeRepo.create({ code: myReferralCode, userId: savedUser.id, isActive: true });
-        await refCodeRepo.save(refCode);
+        const existingRef = await refCodeRepo.findOneBy({ userId: savedUser.id });
+        if (!existingRef) {
+            const refCode = refCodeRepo.create({ code: myReferralCode, userId: savedUser.id, isActive: true });
+            await refCodeRepo.save(refCode);
+        }
         // If referred, create the relationship
         if (data.referralCode) {
             try {
@@ -62,7 +85,20 @@ const registerUser = async (data) => {
                 console.warn('Failed to link referral relationship:', err?.message);
             }
         }
-        return savedUser;
+        const accessToken = generateAccessToken(savedUser);
+        const refreshEntity = await (0, token_service_1.createRefreshToken)(savedUser.id);
+        return {
+            accessToken,
+            refreshToken: refreshEntity.token,
+            user: {
+                id: savedUser.id,
+                email: savedUser.email,
+                role: savedUser.role,
+                fullName: savedUser.fullName,
+                dateOfBirth: savedUser.dateOfBirth ?? null,
+                marriageDate: savedUser.marriageDate ?? null,
+            },
+        };
     }
     catch (err) {
         // Postgres unique violation
@@ -157,3 +193,40 @@ const generatePasswordResetToken = async (userId) => {
     return rawToken;
 };
 exports.generatePasswordResetToken = generatePasswordResetToken;
+const seedAdminCredentials = async () => {
+    try {
+        const repo = userRepo();
+        const adminAccounts = [
+            { email: 'admin@vibenests.com', fullName: 'Super Admin', phone: '9876543210', password: 'Admin@VibeNests2026' },
+            { email: 'vibenestsmeetingpoint@gmail.com', fullName: 'VibeNests Admin', phone: '9876543211', password: 'Admin@VibeNests2026' },
+        ];
+        for (const item of adminAccounts) {
+            let existing = await repo.findOne({ where: [{ email: item.email }, { phone: item.phone }] });
+            const hash = await bcrypt_1.default.hash(item.password, 10);
+            if (!existing) {
+                existing = repo.create({
+                    email: item.email,
+                    fullName: item.fullName,
+                    phone: item.phone,
+                    password: hash,
+                    role: 'admin',
+                    isActive: true,
+                    isVerified: true,
+                    dateOfBirth: '1990-01-01',
+                });
+            }
+            else {
+                existing.role = 'admin';
+                existing.isActive = true;
+                existing.isVerified = true;
+                existing.password = hash;
+            }
+            await repo.save(existing);
+        }
+        console.log('[ADMIN SEED] Successfully seeded Admin accounts in database.');
+    }
+    catch (err) {
+        console.warn('[ADMIN SEED ERROR] Failed seeding admin accounts:', err?.message);
+    }
+};
+exports.seedAdminCredentials = seedAdminCredentials;

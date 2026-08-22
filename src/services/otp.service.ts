@@ -148,8 +148,8 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
               <!-- FOOTER -->
               <tr>
                 <td style="padding: 20px 30px; background-color: #0d1017; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center;">
-                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #d4af37;">VibeNests Luxury Hospitality Private Limited</p>
-                  <p style="margin: 0; font-size: 11px; color: #4a5568;">Handpicked Private Suites & Premium Experience Spaces</p>
+                  <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 600; color: #d4af37;">VibeNests</p> 
+                  <p style="margin: 0; font-size: 11px; color: #4a5568;">Luxury Private Suites</p>  
                   <p style="margin: 10px 0 0 0; font-size: 10px; color: #718096;">© ${new Date().getFullYear()} VibeNests. All rights reserved.</p>
                 </td>
               </tr>

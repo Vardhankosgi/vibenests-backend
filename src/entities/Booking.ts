@@ -99,6 +99,9 @@ export class Booking {
   @Column({ nullable: true })
   couponCode?: string;
 
+  @Column({ nullable: true })
+  specialOfferId?: number;
+
   @Column({ type: 'int', default: 0 })
   rescheduleCount!: number;
 

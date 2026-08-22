@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 
 AppDataSource.initialize()
   .then(async () => {
-    console.log('Database connected');
+    console.log('Database connected & synchronized successfully');
     await seedAdminCredentials();
     startOfferCronJobs();
 

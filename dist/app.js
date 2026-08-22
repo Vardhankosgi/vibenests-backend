@@ -15,6 +15,7 @@ const payments_1 = __importDefault(require("./routes/payments"));
 const payments_links_1 = __importDefault(require("./routes/payments-links"));
 const payments_links_public_1 = __importDefault(require("./routes/payments-links-public"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
+const app_notifications_1 = __importDefault(require("./routes/app-notifications"));
 const reports_1 = __importDefault(require("./routes/reports"));
 const offers_1 = __importDefault(require("./routes/offers"));
 const coupons_1 = __importDefault(require("./routes/coupons"));
@@ -46,6 +47,7 @@ app.use('/payments-links', payments_links_1.default);
 app.use('/payments-links-public', payments_links_public_1.default);
 // also mount public link routes if needed
 app.use('/notifications', notifications_1.default);
+app.use('/app-notifications', app_notifications_1.default);
 app.use('/reports', reports_1.default);
 // New modules
 app.use('/offers', offers_1.default);

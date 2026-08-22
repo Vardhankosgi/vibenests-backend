@@ -8,6 +8,7 @@ import { AddOn } from './entities/AddOn';
 import { Payment } from './entities/Payment';
 import { RefreshToken } from './entities/RefreshToken';
 import { Offer } from './entities/Offer';
+import { OfferAssignment } from './entities/OfferAssignment';
 import { Coupon } from './entities/Coupon';
 import { LiveCelebrationSetting } from './entities/LiveCelebrationSetting';
 import { GlobalSetting } from './entities/GlobalSetting';
@@ -45,7 +46,7 @@ export const AppDataSource = new DataSource({
   extra: isLocalhost ? {} : { ssl: { rejectUnauthorized: false } },
   entities: [
     User, Booking, Suite, SuiteAvailability, AddOn, Payment, RefreshToken,
-    Offer, Coupon, LiveCelebrationSetting, GlobalSetting,
+    Offer, OfferAssignment, Coupon, LiveCelebrationSetting, GlobalSetting,
     TaxCharge, BookingRule, RefundCalculation, AuditLog, OfferConfiguration,
     MembershipPlan, UserMembership, Translation, Review,
     OtpCode, WhatsAppMessage, WhatsAppEvent, AppNotification,

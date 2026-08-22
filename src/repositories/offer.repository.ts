@@ -12,10 +12,12 @@ export class OfferRepository extends BaseRepository<Offer> {
     limit?: number;
   }) {
     const qb = this.repo.createQueryBuilder('offer')
+      .leftJoinAndSelect('offer.assignments', 'assignment')
+      .leftJoinAndSelect('assignment.user', 'user')
       .where('offer.deletedAt IS NULL');
 
     if (params.search)
-      qb.andWhere('(offer.title ILIKE :s OR offer.description ILIKE :s)', { s: `%${params.search}%` });
+      qb.andWhere('(offer.title ILIKE :s OR offer.description ILIKE :s OR offer.suiteName ILIKE :s)', { s: `%${params.search}%` });
     if (params.status)
       qb.andWhere('offer.status = :status', { status: params.status });
 
@@ -30,11 +32,27 @@ export class OfferRepository extends BaseRepository<Offer> {
   async findActiveOffers(): Promise<Offer[]> {
     const now = new Date();
     return this.repo.createQueryBuilder('offer')
+      .leftJoinAndSelect('offer.assignments', 'assignment')
       .where('offer.status = :status', { status: 'active' })
       .andWhere('offer.startDate <= :now', { now })
       .andWhere('offer.endDate >= :now', { now })
       .andWhere('offer.deletedAt IS NULL')
       .orderBy('offer.isFeatured', 'DESC')
+      .getMany();
+  }
+
+  async findUserActiveSpecialOffers(userId: number): Promise<Offer[]> {
+    const now = new Date();
+    return this.repo.createQueryBuilder('offer')
+      .innerJoinAndSelect('offer.assignments', 'assignment', 'assignment.userId = :userId AND assignment.status = :assignStatus', {
+        userId,
+        assignStatus: 'assigned',
+      })
+      .where('offer.status = :status', { status: 'active' })
+      .andWhere('offer.startDate <= :now', { now })
+      .andWhere('offer.endDate >= :now', { now })
+      .andWhere('offer.deletedAt IS NULL')
+      .orderBy('offer.createdAt', 'DESC')
       .getMany();
   }
 

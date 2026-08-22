@@ -203,27 +203,8 @@ const createBooking = async (payload) => {
             console.warn('Failed to send package credit booking confirmation email:', err);
         }
     }
-    else {
-        try {
-            if (guestEmail) {
-                (0, notifications_service_1.sendBookingReceivedEmail)({
-                    to: guestEmail,
-                    guestName,
-                    bookingId: representativeBooking.id,
-                    suiteName,
-                    date: payload.date,
-                    startTime: payload.timeSlots.join(', '),
-                    endTime: '',
-                    occasion: payload.eventType,
-                    addOns: payload.addOns || [],
-                    totalAmount: payload.totalAmount ?? 0,
-                }).catch((e) => console.warn('Booking received email failed:', e?.message));
-            }
-        }
-        catch (err) {
-            console.warn('Failed to send booking received email:', err);
-        }
-    }
+    // Return the first booking or the whole array. We return an array, but express routes might expect one.
+    return finalBookings;
     // Return the first booking or the whole array. We return an array, but express routes might expect one.
     return finalBookings;
 };
@@ -572,6 +553,12 @@ const updateBookingPaymentStatus = async (id, paymentStatus) => {
     if (!booking)
         throw new Error('Booking not found');
     booking.paymentStatus = paymentStatus;
+    if (paymentStatus === 'success') {
+        if (booking.paymentMode === 'pay_now' || booking.paymentMode === 'package_credit' || booking.paymentMode === 'package_purchase') {
+            booking.status = 'confirmed';
+            booking.fullPaymentReceived = true;
+        }
+    }
     return repo().save(booking);
 };
 exports.updateBookingPaymentStatus = updateBookingPaymentStatus;

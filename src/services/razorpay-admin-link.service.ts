@@ -21,6 +21,9 @@ export type AdminCreateRazorpayLinkInput = {
   guestPhone: string;
   persons?: number;
   totalAmount: number;
+  couponCode?: string;
+  specialOfferId?: number;
+  discountAmount?: number;
 };
 
 
@@ -44,6 +47,9 @@ export async function adminCreateRazorpayLink(input: AdminCreateRazorpayLinkInpu
     guestPhone: input.guestPhone,
     persons: input.persons,
     totalAmount: input.totalAmount,
+    couponCode: input.couponCode,
+    specialOfferId: input.specialOfferId,
+    discountAmount: input.discountAmount,
   });
 
   const booking = (allBookings && allBookings.length ? allBookings[0] : undefined) as unknown as Booking;
