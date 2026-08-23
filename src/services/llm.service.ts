@@ -54,12 +54,10 @@ export async function llmAnswer(input: LlmInput): Promise<LlmOutput> {
 
   const modelsToTry = [
     process.env.GROQ_MODEL,
+    'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
-    'llama-3.1-70b-versatile',
-    'mixtral-8x7b-32768',
     'gemma2-9b-it',
-    'llama3-groq-70b-8192-tool-use-preview',
-    'llama3-groq-8b-8192-tool-use-preview'
+    'deepseek-r1-distill-llama-70b',
   ].filter(Boolean) as string[];
 
   const systemPrompt = buildSystemPrompt(input);
@@ -74,50 +72,62 @@ export async function llmAnswer(input: LlmInput): Promise<LlmOutput> {
 
   let lastErrorMsg = '';
 
-  // Try models one by one
-  for (const model of modelsToTry) {
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${groqApiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 500,
-        }),
-      });
+  if (groqApiKey) {
+    // Try modern active models one by one
+    for (const model of modelsToTry) {
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${groqApiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.3,
+            max_tokens: 600,
+          }),
+        });
 
-      const data: any = await resp.json().catch(() => ({}));
+        const data: any = await resp.json().catch(() => ({}));
 
-      if (!resp.ok) {
-        const msg = data?.error?.message || `Groq request failed with ${resp.status}`;
-        // If it's a model availability issue, try the next one
-        if (msg.toLowerCase().includes('decommissioned') || msg.toLowerCase().includes('does not exist')) {
+        if (!resp.ok) {
+          const msg = data?.error?.message || `Groq request failed with ${resp.status}`;
           lastErrorMsg = msg;
+          console.warn(`[GROQ MODEL FAIL] Model ${model} failed:`, msg);
           continue;
         }
-        // If it's an API Key or rate limit error, throw immediately
-        throw new Error(msg);
-      }
 
-      const text = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
-      const reply = safeText(text) || 'Thanks for reaching out to VibeNests. Could you tell me a bit more about what you need?';
+        const text = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || '';
+        const reply = safeText(text);
 
-      return { reply };
-    } catch (e: any) {
-      if (e.message.toLowerCase().includes('decommissioned') || e.message.toLowerCase().includes('does not exist')) {
+        if (reply) {
+          return { reply };
+        }
+      } catch (e: any) {
         lastErrorMsg = e.message;
+        console.warn(`[GROQ FETCH ERROR] Model ${model}:`, e.message);
         continue;
       }
-      throw e;
     }
   }
 
-  throw new Error(`All fallback models failed. Last error: ${lastErrorMsg}`);
+  // Graceful Luxury Assistant Fallback if LLM API is unavailable
+  console.warn(`[LLM SERVICE] Fallback response triggered. Last error: ${lastErrorMsg || 'No API key'}`);
+  
+  const query = input.message.toLowerCase();
+  let fallbackReply = "Hello! Welcome to **VibeNests Private Luxury Suites & Celebrations**.\n\nHow can I help you today? You can explore our [Celebration Suites](/rooms) or check out [My Bookings](/bookings).";
+
+  if (query.includes('book') || query.includes('reserve') || query.includes('price') || query.includes('cost')) {
+    fallbackReply = "You can easily book a private luxury suite for your birthday, anniversary, or romantic date!\n\n👉 [Explore & Book Suites](/rooms)\n\nSelect your date, time slot, and customized celebration add-ons to confirm your booking.";
+  } else if (query.includes('addon') || query.includes('cake') || query.includes('decor')) {
+    fallbackReply = "We offer premium celebration add-ons including custom balloon & rose decor, designer cakes, DJ sound setup, fog entry, and photography!\n\n👉 [View Add-ons](/addons)";
+  } else if (query.includes('contact') || query.includes('call') || query.includes('support') || query.includes('help')) {
+    fallbackReply = "Need immediate assistance? You can reach the VibeNests front desk team via WhatsApp or call us directly at support!\n\n👉 [Contact Us](/settings)";
+  }
+
+  return { reply: fallbackReply };
 }
 
 
