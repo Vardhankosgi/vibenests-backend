@@ -55,7 +55,13 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
   if (RESEND_API_KEY) {
     console.log(`🌐 [Method 1] Attempting delivery via Resend HTTP API (Port 443)...`);
     try {
-      const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_FROM || 'VibeNests <onboarding@resend.dev>';
+      let fromAddress = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'VibeNests <onboarding@resend.dev>';
+      // Resend does not allow unverified @gmail.com as the 'from' domain. Use onboarding@resend.dev unless a custom domain is verified.
+      if (fromAddress.includes('@gmail.com')) {
+        fromAddress = 'VibeNests <onboarding@resend.dev>';
+      }
+
+      console.log(`🌐 [Method 1] Attempting delivery via Resend HTTP API (From: ${fromAddress})...`);
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
