@@ -41,29 +41,78 @@ if ((SMTP_HOST || SMTP_USER) && SMTP_USER && SMTP_PASS) {
   }
 }
 
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+
+console.log(`[EMAIL SYSTEM INIT] Config: RESEND_API_KEY=${RESEND_API_KEY ? 'CONFIGURED (' + RESEND_API_KEY.substring(0, 6) + '...)' : 'MISSING'}, SMTP_HOST=${SMTP_HOST || 'MISSING'}, SMTP_PORT=${SMTP_PORT || 'MISSING'}, SMTP_USER=${SMTP_USER || 'MISSING'}`);
+
 export const sendEmail = async (to: string, subject: string, body: string, html?: string) => {
-  if (transporter) {
+  console.log(`\n================== [EMAIL DISPATCH START] ==================`);
+  console.log(`📬 To: ${to}`);
+  console.log(`📋 Subject: "${subject}"`);
+  console.log(`⚙️ Config: RESEND_API_KEY=${RESEND_API_KEY ? 'YES' : 'NO'}, SMTP_TRANSPORTER=${transporter ? 'YES' : 'NO'}`);
+
+  // 1. Primary: Use Resend HTTP API (Port 443 HTTPS - Never blocked on Cloud/Railway)
+  if (RESEND_API_KEY) {
+    console.log(`🌐 [Method 1] Attempting delivery via Resend HTTP API (Port 443)...`);
     try {
-      await transporter.sendMail({ from: SMTP_FROM, to, subject, text: body, html: html ?? `<p>${body}</p>` });
+      const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_FROM || 'VibeNests <onboarding@resend.dev>';
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${RESEND_API_KEY.trim()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromAddress,
+          to: [to],
+          subject,
+          text: body,
+          html: html ?? `<p>${body}</p>`,
+        }),
+      });
+
+      const data: any = await res.json();
+      if (res.ok && data.id) {
+        console.log(`✅ [RESEND SUCCESS] Email delivered successfully! Message ID: ${data.id}`);
+        console.log(`================== [EMAIL DISPATCH END] ==================\n`);
+        return { ok: true, id: data.id };
+      } else {
+        console.error(`❌ [RESEND API REJECTED] HTTP ${res.status}:`, JSON.stringify(data, null, 2));
+      }
+    } catch (resendErr: any) {
+      console.error(`❌ [RESEND FETCH ERROR]:`, resendErr?.message || resendErr);
+    }
+  } else {
+    console.log(`ℹ️ [Method 1: Resend] Skipped (RESEND_API_KEY is not set in environment variables).`);
+  }
+
+  // 2. Secondary: Use Nodemailer SMTP
+  if (transporter) {
+    console.log(`📡 [Method 2] Attempting delivery via SMTP (${SMTP_HOST}:${SMTP_PORT})...`);
+    try {
+      const info = await transporter.sendMail({ from: SMTP_FROM, to, subject, text: body, html: html ?? `<p>${body}</p>` });
+      console.log(`✅ [SMTP SUCCESS] Email delivered via Nodemailer! Message ID: ${info?.messageId}`);
+      console.log(`================== [EMAIL DISPATCH END] ==================\n`);
       return { ok: true };
     } catch (err: any) {
-      console.error('[SMTP SEND ERROR] Failed to deliver email via Nodemailer:', err?.message ?? err);
-      return { ok: false, error: err?.message ?? err };
+      console.error(`❌ [SMTP SEND ERROR]:`, err?.message || err);
+      console.error(`🔍 SMTP Error Details:`, { code: err?.code, command: err?.command, response: err?.response });
     }
+  } else {
+    console.log(`ℹ️ [Method 2: SMTP] Skipped (Transporter not initialized due to missing SMTP credentials).`);
   }
 
   const missing = [
+    !RESEND_API_KEY ? 'RESEND_API_KEY' : null,
     !SMTP_HOST ? 'SMTP_HOST' : null,
-    !process.env.SMTP_PORT ? 'SMTP_PORT' : null,
     !SMTP_USER ? 'SMTP_USER' : null,
     !SMTP_PASS ? 'SMTP_PASS' : null,
   ].filter(Boolean);
 
-  console.error(
-    `EMAIL (blocked: smtp_not_configured) -> To: ${to} | Subject: ${subject}. Missing env: ${missing.join(', ') || 'unknown'}`
-  );
+  console.error(`🛑 [EMAIL FAILED] No provider succeeded. Missing variables: ${missing.join(', ')}`);
+  console.log(`================== [EMAIL DISPATCH END] ==================\n`);
 
-  return { ok: false, error: 'smtp_not_configured' };
+  return { ok: false, error: 'no_provider_succeeded' };
 };
 
 export const sendBookingConfirmationEmail = async (opts: {
