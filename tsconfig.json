@@ -14,6 +14,7 @@
     "jest.config.ts",
     "jest.config.js",
     "dist",
-    "node_modules"
+    "node_modules",
+    "scripts"
   ],
 }

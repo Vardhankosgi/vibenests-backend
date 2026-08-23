@@ -10,22 +10,32 @@ const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || 'no-reply@vibenests.local';
 
 let transporter: nodemailer.Transporter | null = null;
-if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
+if ((SMTP_HOST || SMTP_USER) && SMTP_USER && SMTP_PASS) {
   try {
-    transporter = nodemailer.createTransport({
-      host: SMTP_HOST,
-      port: SMTP_PORT,
-      secure: SMTP_PORT === 465,
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
-      connectionTimeout: 15000,
-      socketTimeout: 20000,
-      tls: {
-        rejectUnauthorized: false,
-      },
-      auth: { user: SMTP_USER, pass: SMTP_PASS },
-    });
+    const isGmail = SMTP_HOST?.includes('gmail') || SMTP_USER?.includes('@gmail.com');
+
+    const transportConfig: any = isGmail
+      ? {
+          service: 'gmail',
+          auth: { user: SMTP_USER, pass: SMTP_PASS },
+        }
+      : {
+          host: SMTP_HOST,
+          port: SMTP_PORT || 465,
+          secure: (SMTP_PORT ?? 465) === 465,
+          pool: true,
+          maxConnections: 5,
+          maxMessages: 100,
+          connectionTimeout: 15000,
+          socketTimeout: 20000,
+          tls: {
+            rejectUnauthorized: false,
+          },
+          auth: { user: SMTP_USER, pass: SMTP_PASS },
+        };
+
+    transporter = nodemailer.createTransport(transportConfig);
+    console.log(`[SMTP INIT] Initialized email transporter (${isGmail ? 'Gmail Service' : `${SMTP_HOST}:${SMTP_PORT}`})`);
   } catch (err) {
     console.error('[SMTP INIT ERROR] Transporter init failed:', err);
   }
