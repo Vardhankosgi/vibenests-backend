@@ -242,6 +242,39 @@ export async function sendLoginOtp(phone: string, otpCode: string, userName: str
 }
 
 /**
+ * Sends a Marketing / Greeting message with Book Now button (celebrations.vibenests.in).
+ * Matches Meta template: vibenests_celebration_booking / celebration_booking_flow
+ */
+export async function sendCelebrationBookingMarketingMessage(
+  phone: string,
+  userName: string = 'Guest',
+  templateName: string = process.env.WHATSAPP_MARKETING_TEMPLATE_NAME || 'vibenests_celebration_booking'
+): Promise<WhatsAppSendResult> {
+  const config = getWhatsAppConfig();
+
+  const components: TemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: [
+        {
+          type: 'text',
+          text: userName,
+        },
+      ],
+    },
+  ];
+
+  console.log(`[WHATSAPP MARKETING INITIATED] Sending celebration template "${templateName}" to ${maskPhoneNumber(phone)}`);
+
+  return sendTemplateMessage({
+    to: phone,
+    templateName,
+    languageCode: config.otpTemplateLanguage || 'en',
+    components,
+  });
+}
+
+/**
  * Helper to verify Meta Webhook GET subscription handshake.
  */
 export function verifyWebhook(
@@ -269,5 +302,6 @@ export default {
   formatPhoneNumber,
   sendTemplateMessage,
   sendLoginOtp,
+  sendCelebrationBookingMarketingMessage,
   verifyWebhook,
 };

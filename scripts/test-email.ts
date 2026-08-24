@@ -3,8 +3,8 @@ import nodemailer from 'nodemailer';
 
 dotenv.config();
 
-const SMTP_USER = process.env.SMTP_USER || 'VibeNestsmeetingpoint@gmail.com';
-const SMTP_PASS = process.env.SMTP_PASS || 'qptwmedpcoyolokr';
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
 
 console.log('Testing email credentials with:', SMTP_USER);
 

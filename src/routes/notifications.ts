@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { sendEmail, sendSms, sendWhatsApp, smtpHealthCheck } from '../services/notifications.service';
+import { sendCelebrationBookingMarketingMessage, sendTemplateMessage } from '../services/whatsapp.service';
 import { AppDataSource } from '../data-source';
 import { WhatsAppMessage } from '../entities/WhatsAppMessage';
 import { WhatsAppEvent } from '../entities/WhatsAppEvent';
@@ -31,21 +32,40 @@ router.post('/send/sms', authenticate, requireRole('admin'), async (req: any, re
 
 router.post('/send/whatsapp', authenticate, requireRole('admin'), async (req: any, res) => {
   try {
-    const { phone, message, messageType } = req.body;
+    const { phone, message, messageType, templateName, userName } = req.body;
     const cleanPhone = phone.replace(/\D/g, '');
-    const result = await sendWhatsApp(cleanPhone, message);
+    let result: any;
+
+    if (templateName === 'vibenests_celebration_booking') {
+      result = await sendCelebrationBookingMarketingMessage(cleanPhone, userName || 'Guest', templateName);
+    } else if (templateName === 'login_otp') {
+      const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+      result = await sendTemplateMessage({
+        to: cleanPhone,
+        templateName: 'login_otp',
+        languageCode: 'en',
+        components: [
+          {
+            type: 'body',
+            parameters: [{ type: 'text', text: otpCode }],
+          },
+        ],
+      });
+    } else {
+      result = await sendWhatsApp(cleanPhone, message);
+    }
     
-    // Log outbound custom message in DB
+    // Log outbound message in DB
     await AppDataSource.getRepository(WhatsAppMessage).save({
       phone: cleanPhone,
       direction: 'outbound',
       content: message,
-      messageType: messageType || 'text',
-      waMessageId: 'admin_custom_' + Date.now(),
+      messageType: messageType || templateName || 'text',
+      waMessageId: result?.messageId || ('admin_custom_' + Date.now()),
       waConversationId: null,
     });
 
-    res.json({ message: 'WhatsApp sent', result });
+    res.json({ message: 'WhatsApp message dispatched', result, ok: result?.ok ?? true });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

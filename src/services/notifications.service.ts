@@ -41,27 +41,66 @@ if ((SMTP_HOST || SMTP_USER) && SMTP_USER && SMTP_PASS) {
   }
 }
 
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'vibenestsmeetingpoint@gmail.com';
+const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || 'VibeNests Celebrations';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-console.log(`[EMAIL SYSTEM INIT] Config: RESEND_API_KEY=${RESEND_API_KEY ? 'CONFIGURED (' + RESEND_API_KEY.substring(0, 6) + '...)' : 'MISSING'}, SMTP_HOST=${SMTP_HOST || 'MISSING'}, SMTP_PORT=${SMTP_PORT || 'MISSING'}, SMTP_USER=${SMTP_USER || 'MISSING'}`);
+console.log(`[EMAIL SYSTEM INIT] Config: BREVO_API_KEY=${BREVO_API_KEY ? 'CONFIGURED (' + BREVO_API_KEY.substring(0, 8) + '...)' : 'MISSING'}, RESEND_API_KEY=${RESEND_API_KEY ? 'CONFIGURED' : 'MISSING'}, SMTP_HOST=${SMTP_HOST || 'MISSING'}`);
 
 export const sendEmail = async (to: string, subject: string, body: string, html?: string) => {
   console.log(`\n================== [EMAIL DISPATCH START] ==================`);
   console.log(`📬 To: ${to}`);
   console.log(`📋 Subject: "${subject}"`);
-  console.log(`⚙️ Config: RESEND_API_KEY=${RESEND_API_KEY ? 'YES' : 'NO'}, SMTP_TRANSPORTER=${transporter ? 'YES' : 'NO'}`);
+  console.log(`⚙️ Config: BREVO_API_KEY=${BREVO_API_KEY ? 'YES' : 'NO'}, RESEND_API_KEY=${RESEND_API_KEY ? 'YES' : 'NO'}, SMTP_TRANSPORTER=${transporter ? 'YES' : 'NO'}`);
 
-  // 1. Primary: Use Resend HTTP API (Port 443 HTTPS - Never blocked on Cloud/Railway)
+  // 1. Primary: Use Brevo HTTP API (Port 443 HTTPS - Never blocked by Railway/Cloud)
+  if (BREVO_API_KEY) {
+    console.log(`🌐 [Method 1: Brevo] Sending via Brevo REST API (Sender: ${BREVO_SENDER_NAME} <${BREVO_SENDER_EMAIL}>)...`);
+    try {
+      const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'api-key': BREVO_API_KEY.trim(),
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: {
+            name: BREVO_SENDER_NAME,
+            email: BREVO_SENDER_EMAIL,
+          },
+          to: [{ email: to }],
+          subject,
+          htmlContent: html ?? `<p>${body}</p>`,
+          textContent: body,
+        }),
+      });
+
+      const brevoData: any = await brevoRes.json().catch(() => ({}));
+      if (brevoRes.ok && brevoData.messageId) {
+        console.log(`✅ [BREVO SUCCESS] Email sent successfully! Message ID: ${brevoData.messageId}`);
+        console.log(`================== [EMAIL DISPATCH END] ==================\n`);
+        return { ok: true, id: brevoData.messageId };
+      } else {
+        console.error(`❌ [BREVO API ERROR] HTTP ${brevoRes.status}:`, JSON.stringify(brevoData, null, 2));
+      }
+    } catch (brevoErr: any) {
+      console.error(`❌ [BREVO FETCH ERROR]:`, brevoErr?.message || brevoErr);
+    }
+  } else {
+    console.log(`ℹ️ [Method 1: Brevo] Skipped (BREVO_API_KEY not configured).`);
+  }
+
+  // 2. Secondary: Use Resend HTTP API (Port 443 HTTPS)
   if (RESEND_API_KEY) {
-    console.log(`🌐 [Method 1] Attempting delivery via Resend HTTP API (Port 443)...`);
+    console.log(`🌐 [Method 2: Resend] Attempting delivery via Resend HTTP API (Port 443)...`);
     try {
       let fromAddress = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'VibeNests <onboarding@resend.dev>';
-      // Resend does not allow unverified @gmail.com as the 'from' domain. Use onboarding@resend.dev unless a custom domain is verified.
       if (fromAddress.includes('@gmail.com')) {
         fromAddress = 'VibeNests <onboarding@resend.dev>';
       }
 
-      console.log(`🌐 [Method 1] Attempting delivery via Resend HTTP API (From: ${fromAddress})...`);
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -77,7 +116,7 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
         }),
       });
 
-      const data: any = await res.json();
+      const data: any = await res.json().catch(() => ({}));
       if (res.ok && data.id) {
         console.log(`✅ [RESEND SUCCESS] Email delivered successfully! Message ID: ${data.id}`);
         console.log(`================== [EMAIL DISPATCH END] ==================\n`);
@@ -89,12 +128,12 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
       console.error(`❌ [RESEND FETCH ERROR]:`, resendErr?.message || resendErr);
     }
   } else {
-    console.log(`ℹ️ [Method 1: Resend] Skipped (RESEND_API_KEY is not set in environment variables).`);
+    console.log(`ℹ️ [Method 2: Resend] Skipped (RESEND_API_KEY not configured).`);
   }
 
-  // 2. Secondary: Use Nodemailer SMTP
+  // 3. Fallback: Use Nodemailer SMTP
   if (transporter) {
-    console.log(`📡 [Method 2] Attempting delivery via SMTP (${SMTP_HOST}:${SMTP_PORT})...`);
+    console.log(`📡 [Method 3: SMTP] Attempting delivery via SMTP (${SMTP_HOST}:${SMTP_PORT})...`);
     try {
       const info = await transporter.sendMail({ from: SMTP_FROM, to, subject, text: body, html: html ?? `<p>${body}</p>` });
       console.log(`✅ [SMTP SUCCESS] Email delivered via Nodemailer! Message ID: ${info?.messageId}`);
@@ -105,10 +144,11 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
       console.error(`🔍 SMTP Error Details:`, { code: err?.code, command: err?.command, response: err?.response });
     }
   } else {
-    console.log(`ℹ️ [Method 2: SMTP] Skipped (Transporter not initialized due to missing SMTP credentials).`);
+    console.log(`ℹ️ [Method 3: SMTP] Skipped (Transporter not initialized).`);
   }
 
   const missing = [
+    !BREVO_API_KEY ? 'BREVO_API_KEY' : null,
     !RESEND_API_KEY ? 'RESEND_API_KEY' : null,
     !SMTP_HOST ? 'SMTP_HOST' : null,
     !SMTP_USER ? 'SMTP_USER' : null,
