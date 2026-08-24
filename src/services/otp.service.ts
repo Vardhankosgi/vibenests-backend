@@ -82,13 +82,6 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
     const entry = otpRepo().create({ email: normalisedEmail, code, expiresAt, used: false });
     await otpRepo().save(entry);
 
-    console.log('\n============================================================');
-    console.log(`🔑 [EMAIL LOGIN OTP GENERATED]`);
-    console.log(`📬 User Email: ${normalisedEmail}`);
-    console.log(`🔢 OTP CODE:   ${code}`);
-    console.log(`⏱️ Valid Until: ${expiresAt.toLocaleTimeString()} (5 Minutes)`);
-    console.log('============================================================\n');
-
     const emailSubject = 'VibeNests — Your One-Time Password (OTP)';
     const textMessage = `Welcome to VibeNests Private Luxury Suites! Your One-Time Password (OTP) for account verification is ${code}. Valid for 5 minutes. Please do not share this OTP with anyone.`;
     const htmlMessage = `
@@ -168,14 +161,7 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
     </body>
     </html>`;
 
-    // Dispatch email asynchronously so HTTP API responds instantly (< 50ms)
-    sendEmail(normalisedEmail, emailSubject, textMessage, htmlMessage).then((result) => {
-      if (!result.ok) {
-        console.error(`[OTP EMAIL ERROR] Failed to send email to ${normalisedEmail}:`, result.error);
-      } else {
-        console.log(`[OTP EMAIL SUCCESS] Email delivered successfully to ${normalisedEmail}`);
-      }
-    }).catch((err) => {
+    sendEmail(normalisedEmail, emailSubject, textMessage, htmlMessage).catch((err) => {
       console.error('[OTP EMAIL ASYNC ERROR]', err);
     });
 

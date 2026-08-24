@@ -49,14 +49,8 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY;
 console.log(`[EMAIL SYSTEM INIT] Config: BREVO_API_KEY=${BREVO_API_KEY ? 'CONFIGURED (' + BREVO_API_KEY.substring(0, 8) + '...)' : 'MISSING'}, RESEND_API_KEY=${RESEND_API_KEY ? 'CONFIGURED' : 'MISSING'}, SMTP_HOST=${SMTP_HOST || 'MISSING'}`);
 
 export const sendEmail = async (to: string, subject: string, body: string, html?: string) => {
-  console.log(`\n================== [EMAIL DISPATCH START] ==================`);
-  console.log(`📬 To: ${to}`);
-  console.log(`📋 Subject: "${subject}"`);
-  console.log(`⚙️ Config: BREVO_API_KEY=${BREVO_API_KEY ? 'YES' : 'NO'}, RESEND_API_KEY=${RESEND_API_KEY ? 'YES' : 'NO'}, SMTP_TRANSPORTER=${transporter ? 'YES' : 'NO'}`);
-
   // 1. Primary: Use Brevo HTTP API (Port 443 HTTPS - Never blocked by Railway/Cloud)
   if (BREVO_API_KEY) {
-    console.log(`🌐 [Method 1: Brevo] Sending via Brevo REST API (Sender: ${BREVO_SENDER_NAME} <${BREVO_SENDER_EMAIL}>)...`);
     try {
       const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
@@ -79,17 +73,13 @@ export const sendEmail = async (to: string, subject: string, body: string, html?
 
       const brevoData: any = await brevoRes.json().catch(() => ({}));
       if (brevoRes.ok && brevoData.messageId) {
-        console.log(`✅ [BREVO SUCCESS] Email sent successfully! Message ID: ${brevoData.messageId}`);
-        console.log(`================== [EMAIL DISPATCH END] ==================\n`);
         return { ok: true, id: brevoData.messageId };
       } else {
-        console.error(`❌ [BREVO API ERROR] HTTP ${brevoRes.status}:`, JSON.stringify(brevoData, null, 2));
+        console.error(`[BREVO API ERROR] HTTP ${brevoRes.status}:`, JSON.stringify(brevoData));
       }
     } catch (brevoErr: any) {
-      console.error(`❌ [BREVO FETCH ERROR]:`, brevoErr?.message || brevoErr);
+      console.error(`[BREVO FETCH ERROR]:`, brevoErr?.message || brevoErr);
     }
-  } else {
-    console.log(`ℹ️ [Method 1: Brevo] Skipped (BREVO_API_KEY not configured).`);
   }
 
   // 2. Secondary: Use Resend HTTP API (Port 443 HTTPS)
