@@ -1,6 +1,7 @@
 import { AppDataSource } from '../data-source';
 import { OtpCode } from '../entities/OtpCode';
 import { User } from '../entities/User';
+import { WhatsAppMessage } from '../entities/WhatsAppMessage';
 import { sendEmail, sendSms } from './notifications.service';
 import { sendLoginOtp, isWhatsAppConfigured } from './whatsapp.service';
 
@@ -229,8 +230,32 @@ export const sendOtp = async (input: string | { phone?: string; email?: string }
       if (!waResult.ok && !waResult.stub) {
         console.warn(`[OTP SERVICE WARNING] WhatsApp OTP dispatch returned error: ${JSON.stringify(waResult.error)}`);
       }
+      try {
+        await AppDataSource.getRepository(WhatsAppMessage).save({
+          phone: normalised,
+          direction: 'outbound',
+          content: `Your VibeNests OTP is ${code}. Valid for 5 minutes. Do not share this with anyone.`,
+          messageType: 'Login OTP Verification',
+          waMessageId: waResult?.messageId || ('otp_' + Date.now()),
+          waConversationId: null,
+        });
+      } catch (logErr) {
+        console.warn('Failed to log WhatsApp OTP message:', logErr);
+      }
     } else {
       await sendSms(normalised, textMessage);
+      try {
+        await AppDataSource.getRepository(WhatsAppMessage).save({
+          phone: normalised,
+          direction: 'outbound',
+          content: textMessage,
+          messageType: 'Login OTP Verification (SMS)',
+          waMessageId: 'sms_' + Date.now(),
+          waConversationId: null,
+        });
+      } catch (logErr) {
+        console.warn('Failed to log SMS OTP message:', logErr);
+      }
     }
   })().catch((err) => {
     console.error('[OTP MOBILE ASYNC ERROR]', err);

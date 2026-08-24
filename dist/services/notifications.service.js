@@ -13,46 +13,140 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || 'no-reply@vibenests.local';
 let transporter = null;
-if (SMTP_HOST && SMTP_PORT && SMTP_USER && SMTP_PASS) {
+if ((SMTP_HOST || SMTP_USER) && SMTP_USER && SMTP_PASS) {
     try {
-        transporter = nodemailer_1.default.createTransport({
-            host: SMTP_HOST,
-            port: SMTP_PORT,
-            secure: SMTP_PORT === 465,
-            pool: true,
-            maxConnections: 5,
-            maxMessages: 100,
-            connectionTimeout: 15000,
-            socketTimeout: 20000,
-            tls: {
-                rejectUnauthorized: false,
-            },
-            auth: { user: SMTP_USER, pass: SMTP_PASS },
-        });
+        const isGmail = SMTP_HOST?.includes('gmail') || SMTP_USER?.includes('@gmail.com');
+        const transportConfig = isGmail
+            ? {
+                service: 'gmail',
+                auth: { user: SMTP_USER, pass: SMTP_PASS },
+            }
+            : {
+                host: SMTP_HOST,
+                port: SMTP_PORT || 465,
+                secure: (SMTP_PORT ?? 465) === 465,
+                pool: true,
+                maxConnections: 5,
+                maxMessages: 100,
+                connectionTimeout: 15000,
+                socketTimeout: 20000,
+                tls: {
+                    rejectUnauthorized: false,
+                },
+                auth: { user: SMTP_USER, pass: SMTP_PASS },
+            };
+        transporter = nodemailer_1.default.createTransport(transportConfig);
+        console.log(`[SMTP INIT] Initialized email transporter (${isGmail ? 'Gmail Service' : `${SMTP_HOST}:${SMTP_PORT}`})`);
     }
     catch (err) {
         console.error('[SMTP INIT ERROR] Transporter init failed:', err);
     }
 }
+const BREVO_API_KEY = process.env.BREVO_API_KEY;
+const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER || 'vibenestsmeetingpoint@gmail.com';
+const BREVO_SENDER_NAME = process.env.BREVO_SENDER_NAME || 'VibeNests Celebrations';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+console.log(`[EMAIL SYSTEM INIT] Config: BREVO_API_KEY=${BREVO_API_KEY ? 'CONFIGURED (' + BREVO_API_KEY.substring(0, 8) + '...)' : 'MISSING'}, RESEND_API_KEY=${RESEND_API_KEY ? 'CONFIGURED' : 'MISSING'}, SMTP_HOST=${SMTP_HOST || 'MISSING'}`);
 const sendEmail = async (to, subject, body, html) => {
-    if (transporter) {
+    // 1. Primary: Use Brevo HTTP API (Port 443 HTTPS - Never blocked by Railway/Cloud)
+    if (BREVO_API_KEY) {
         try {
-            await transporter.sendMail({ from: SMTP_FROM, to, subject, text: body, html: html ?? `<p>${body}</p>` });
+            const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+                method: 'POST',
+                headers: {
+                    accept: 'application/json',
+                    'api-key': BREVO_API_KEY.trim(),
+                    'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sender: {
+                        name: BREVO_SENDER_NAME,
+                        email: BREVO_SENDER_EMAIL,
+                    },
+                    to: [{ email: to }],
+                    subject,
+                    htmlContent: html ?? `<p>${body}</p>`,
+                    textContent: body,
+                }),
+            });
+            const brevoData = await brevoRes.json().catch(() => ({}));
+            if (brevoRes.ok && brevoData.messageId) {
+                return { ok: true, id: brevoData.messageId };
+            }
+            else {
+                console.error(`[BREVO API ERROR] HTTP ${brevoRes.status}:`, JSON.stringify(brevoData));
+            }
+        }
+        catch (brevoErr) {
+            console.error(`[BREVO FETCH ERROR]:`, brevoErr?.message || brevoErr);
+        }
+    }
+    // 2. Secondary: Use Resend HTTP API (Port 443 HTTPS)
+    if (RESEND_API_KEY) {
+        console.log(`🌐 [Method 2: Resend] Attempting delivery via Resend HTTP API (Port 443)...`);
+        try {
+            let fromAddress = process.env.RESEND_FROM || process.env.EMAIL_FROM || 'VibeNests <onboarding@resend.dev>';
+            if (fromAddress.includes('@gmail.com')) {
+                fromAddress = 'VibeNests <onboarding@resend.dev>';
+            }
+            const res = await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${RESEND_API_KEY.trim()}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    from: fromAddress,
+                    to: [to],
+                    subject,
+                    text: body,
+                    html: html ?? `<p>${body}</p>`,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.id) {
+                console.log(`✅ [RESEND SUCCESS] Email delivered successfully! Message ID: ${data.id}`);
+                console.log(`================== [EMAIL DISPATCH END] ==================\n`);
+                return { ok: true, id: data.id };
+            }
+            else {
+                console.error(`❌ [RESEND API REJECTED] HTTP ${res.status}:`, JSON.stringify(data, null, 2));
+            }
+        }
+        catch (resendErr) {
+            console.error(`❌ [RESEND FETCH ERROR]:`, resendErr?.message || resendErr);
+        }
+    }
+    else {
+        console.log(`ℹ️ [Method 2: Resend] Skipped (RESEND_API_KEY not configured).`);
+    }
+    // 3. Fallback: Use Nodemailer SMTP
+    if (transporter) {
+        console.log(`📡 [Method 3: SMTP] Attempting delivery via SMTP (${SMTP_HOST}:${SMTP_PORT})...`);
+        try {
+            const info = await transporter.sendMail({ from: SMTP_FROM, to, subject, text: body, html: html ?? `<p>${body}</p>` });
+            console.log(`✅ [SMTP SUCCESS] Email delivered via Nodemailer! Message ID: ${info?.messageId}`);
+            console.log(`================== [EMAIL DISPATCH END] ==================\n`);
             return { ok: true };
         }
         catch (err) {
-            console.error('[SMTP SEND ERROR] Failed to deliver email via Nodemailer:', err?.message ?? err);
-            return { ok: false, error: err?.message ?? err };
+            console.error(`❌ [SMTP SEND ERROR]:`, err?.message || err);
+            console.error(`🔍 SMTP Error Details:`, { code: err?.code, command: err?.command, response: err?.response });
         }
     }
+    else {
+        console.log(`ℹ️ [Method 3: SMTP] Skipped (Transporter not initialized).`);
+    }
     const missing = [
+        !BREVO_API_KEY ? 'BREVO_API_KEY' : null,
+        !RESEND_API_KEY ? 'RESEND_API_KEY' : null,
         !SMTP_HOST ? 'SMTP_HOST' : null,
-        !process.env.SMTP_PORT ? 'SMTP_PORT' : null,
         !SMTP_USER ? 'SMTP_USER' : null,
         !SMTP_PASS ? 'SMTP_PASS' : null,
     ].filter(Boolean);
-    console.error(`EMAIL (blocked: smtp_not_configured) -> To: ${to} | Subject: ${subject}. Missing env: ${missing.join(', ') || 'unknown'}`);
-    return { ok: false, error: 'smtp_not_configured' };
+    console.error(`🛑 [EMAIL FAILED] No provider succeeded. Missing variables: ${missing.join(', ')}`);
+    console.log(`================== [EMAIL DISPATCH END] ==================\n`);
+    return { ok: false, error: 'no_provider_succeeded' };
 };
 exports.sendEmail = sendEmail;
 const sendBookingConfirmationEmail = async (opts) => {

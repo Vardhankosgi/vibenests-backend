@@ -70,4 +70,5 @@ app.use((err, req, res, next) => {
     res.status(err.status || 500).json({ message: err.message || 'Internal server error' });
 });
 app.get('/', (_req, res) => res.json({ message: 'VibeNests API v2' }));
+app.get('/health', (_req, res) => res.status(200).json({ status: 'ok', uptime: process.uptime() }));
 exports.default = app;

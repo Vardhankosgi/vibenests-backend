@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const auth_1 = require("../middleware/auth");
 const notifications_service_1 = require("../services/notifications.service");
+const whatsapp_service_1 = require("../services/whatsapp.service");
 const data_source_1 = require("../data-source");
 const WhatsAppMessage_1 = require("../entities/WhatsAppMessage");
 const WhatsAppEvent_1 = require("../entities/WhatsAppEvent");
@@ -34,19 +35,39 @@ router.post('/send/sms', auth_1.authenticate, (0, auth_1.requireRole)('admin'), 
 });
 router.post('/send/whatsapp', auth_1.authenticate, (0, auth_1.requireRole)('admin'), async (req, res) => {
     try {
-        const { phone, message, messageType } = req.body;
+        const { phone, message, messageType, templateName, userName } = req.body;
         const cleanPhone = phone.replace(/\D/g, '');
-        const result = await (0, notifications_service_1.sendWhatsApp)(cleanPhone, message);
-        // Log outbound custom message in DB
+        let result;
+        if (templateName === 'vibenests_celebration_booking') {
+            result = await (0, whatsapp_service_1.sendCelebrationBookingMarketingMessage)(cleanPhone, userName || 'Guest', templateName);
+        }
+        else if (templateName === 'login_otp') {
+            const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+            result = await (0, whatsapp_service_1.sendTemplateMessage)({
+                to: cleanPhone,
+                templateName: 'login_otp',
+                languageCode: 'en',
+                components: [
+                    {
+                        type: 'body',
+                        parameters: [{ type: 'text', text: otpCode }],
+                    },
+                ],
+            });
+        }
+        else {
+            result = await (0, notifications_service_1.sendWhatsApp)(cleanPhone, message);
+        }
+        // Log outbound message in DB
         await data_source_1.AppDataSource.getRepository(WhatsAppMessage_1.WhatsAppMessage).save({
             phone: cleanPhone,
             direction: 'outbound',
             content: message,
-            messageType: messageType || 'text',
-            waMessageId: 'admin_custom_' + Date.now(),
+            messageType: messageType || templateName || 'text',
+            waMessageId: result?.messageId || ('admin_custom_' + Date.now()),
             waConversationId: null,
         });
-        res.json({ message: 'WhatsApp sent', result });
+        res.json({ message: 'WhatsApp message dispatched', result, ok: result?.ok ?? true });
     }
     catch (err) {
         res.status(400).json({ message: err.message });

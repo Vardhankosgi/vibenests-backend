@@ -12,12 +12,12 @@ dotenv_1.default.config();
 const PORT = process.env.PORT || 5000;
 data_source_1.AppDataSource.initialize()
     .then(async () => {
-    console.log('Database connected');
+    console.log('Database connected & synchronized successfully');
     await (0, auth_service_1.seedAdminCredentials)();
     (0, offerSync_cron_1.startOfferCronJobs)();
     function startServer() {
-        const server = app_1.default.listen(PORT, '127.0.0.1', () => {
-            console.log(`Server started on 127.0.0.1:${PORT}`);
+        const server = app_1.default.listen(Number(PORT), '0.0.0.0', () => {
+            console.log(`Server started on 0.0.0.0:${PORT}`);
         });
         server.on('error', (err) => {
             if (err.code === 'EADDRINUSE') {

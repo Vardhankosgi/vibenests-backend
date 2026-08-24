@@ -194,6 +194,8 @@ router.post('/', (0, validate_1.validateBody)(schemas_1.bookingCreateSchema), as
             totalAmount: payload.totalAmount,
             paymentMode: payload.paymentMode,
             advanceAmount: payload.advanceAmount,
+            couponCode: payload.couponCode,
+            specialOfferId: payload.specialOfferId,
         });
         // Send back the first booking or the array depending on frontend expectations.
         // We will send the first one as an object but inject `bookings` array for safety.
@@ -220,6 +222,44 @@ router.post('/admin', (0, auth_1.requireRole)('admin'), (0, validate_1.validateB
             guestPhone: p.guestPhone,
             persons: p.persons,
             totalAmount: p.totalAmount,
+            couponCode: p.couponCode,
+            specialOfferId: p.specialOfferId,
+            discountAmount: p.discountAmount,
+        });
+        res.status(201).json({ ...bookings[0], allBookings: bookings });
+    }
+    catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+router.post('/manual-entry', (0, auth_1.requireRole)('admin'), (0, validate_1.validateBody)(schemas_1.manualBookingSchema), async (req, res) => {
+    try {
+        const p = req.body;
+        const bookings = await (0, bookings_service_1.manualCreateBooking)({
+            suiteId: p.suiteId,
+            eventType: p.eventType,
+            addOns: p.addOns,
+            date: p.date,
+            timeSlots: Array.isArray(p.timeSlots) ? p.timeSlots : (p.timeSlot ? [String(p.timeSlot)] : []),
+            userId: p.userId,
+            guestFirstName: p.guestFirstName,
+            guestLastName: p.guestLastName,
+            guestEmail: p.guestEmail,
+            guestPhone: p.guestPhone,
+            persons: p.persons,
+            basePrice: p.basePrice,
+            addonsTotal: p.addonsTotal,
+            discountAmount: p.discountAmount,
+            taxAmount: p.taxAmount,
+            totalAmount: p.totalAmount,
+            paymentMode: p.paymentMode,
+            paymentStatus: p.paymentStatus,
+            advanceAmount: p.advanceAmount,
+            paymentReferenceId: p.paymentReferenceId,
+            staffNotes: p.staffNotes,
+            sendNotification: p.sendNotification,
+            couponCode: p.couponCode,
+            specialOfferId: p.specialOfferId,
         });
         res.status(201).json({ ...bookings[0], allBookings: bookings });
     }
@@ -229,7 +269,7 @@ router.post('/admin', (0, auth_1.requireRole)('admin'), (0, validate_1.validateB
 });
 router.post('/admin/create-razorpay-link', (0, auth_1.requireRole)('admin'), async (req, res) => {
     try {
-        const { suiteId, eventType, addOns, date, timeSlot, endTimeSlot, guestFirstName, guestLastName, guestEmail, guestPhone, totalAmount, } = req.body || {};
+        const { suiteId, eventType, addOns, date, timeSlot, endTimeSlot, guestFirstName, guestLastName, guestEmail, guestPhone, totalAmount, couponCode, specialOfferId, discountAmount, } = req.body || {};
         if (!suiteId || !date || !timeSlot || !guestFirstName || !guestLastName || !guestPhone || !totalAmount) {
             return res.status(400).json({ message: 'Missing required booking fields' });
         }
@@ -246,6 +286,9 @@ router.post('/admin/create-razorpay-link', (0, auth_1.requireRole)('admin'), asy
             guestPhone: String(guestPhone),
             totalAmount: Number(totalAmount),
             persons: req.body.persons,
+            couponCode: couponCode ? String(couponCode) : undefined,
+            specialOfferId: specialOfferId ? Number(specialOfferId) : undefined,
+            discountAmount: discountAmount ? Number(discountAmount) : undefined,
         });
         res.status(201).json({ booking, paymentLink });
     }

@@ -10,11 +10,21 @@ function normalizePhone(phone: string | undefined | null): string | null {
   return digits.length ? digits : null;
 }
 
-async function sendAndLog(phone: string | undefined | null, message: string, direction: 'outbound' | 'inbound' = 'outbound') {
+async function sendAndLog(
+  phone: string | undefined | null,
+  message: string,
+  direction: 'outbound' | 'inbound' = 'outbound',
+  messageType: string = 'General Notification'
+) {
   const digits = normalizePhone(phone);
   if (!digits) return { ok: false, reason: 'missing_phone' };
 
-  await sendWhatsApp(digits, message);
+  let sendResult: any = null;
+  try {
+    sendResult = await sendWhatsApp(digits, message);
+  } catch (err) {
+    console.warn('[WhatsApp Notification Error]', err);
+  }
 
   // Best-effort DB logging for outbound messages.
   try {
@@ -22,26 +32,33 @@ async function sendAndLog(phone: string | undefined | null, message: string, dir
       phone: digits,
       direction,
       content: message,
-      messageType: 'text',
-      waMessageId: null,
+      messageType,
+      waMessageId: sendResult?.messageId || ('outbound_' + Date.now()),
       waConversationId: null,
     });
-  } catch {
-    // ignore logging failures
+  } catch (err) {
+    console.warn('[WhatsApp Message Save Error]', err);
   }
 
-  return { ok: true };
+  return { ok: true, result: sendResult };
 }
 
 export async function sendOtpWhatsApp(phone: string, otpCode: string) {
-  return sendAndLog(phone, `Your VibeNests OTP is ${otpCode}. Valid for 5 minutes. Do not share this with anyone.`);
+  return sendAndLog(
+    phone,
+    `Your VibeNests OTP is ${otpCode}. Valid for 5 minutes. Do not share this with anyone.`,
+    'outbound',
+    'Login OTP Verification'
+  );
 }
 
 export async function sendAccountCreatedWhatsApp(user: Pick<User, 'phone' | 'fullName'>) {
   const name = user.fullName || 'there';
   return sendAndLog(
     user.phone,
-    `Hi ${name}! Welcome to VibeNests. Your account has been created. You can now log in and set up your password.`
+    `Hi ${name}! Welcome to VibeNests. Your account has been created. You can now log in and set up your password.`,
+    'outbound',
+    'Account Verification'
   );
 }
 
@@ -51,7 +68,9 @@ export async function sendBookingConfirmedWhatsApp(booking: Partial<Booking> & {
 
   return sendAndLog(
     phone,
-    `Hi ${name}! Your booking is confirmed. Booking ID: #VN${booking.id ?? ''}. We’re excited to host you at VibeNests.`
+    `Hi ${name}! Your booking is confirmed. Booking ID: #VN${booking.id ?? ''}. We’re excited to host you at VibeNests.`,
+    'outbound',
+    'Booking Confirmation'
   );
 }
 
@@ -62,12 +81,19 @@ export async function sendPaymentSuccessWhatsApp(booking: Partial<Booking> & { g
 
   return sendAndLog(
     phone,
-    `Hi ${name}! Payment successful. Your booking is confirmed. Amount: ${amount}. See you soon at VibeNests!`
+    `Hi ${name}! Payment successful. Your booking is confirmed. Amount: ${amount}. See you soon at VibeNests!`,
+    'outbound',
+    'Payment Success'
   );
 }
 
 export async function sendOfferActivatedWhatsApp(phone: string | undefined | null, offerName: string) {
-  return sendAndLog(phone, `New offer is live at VibeNests: ${offerName}. Check out the latest deals today!`);
+  return sendAndLog(
+    phone,
+    `New offer is live at VibeNests: ${offerName}. Check out the latest deals today!`,
+    'outbound',
+    'Special Offer'
+  );
 }
 
 export async function sendRefundStatusWhatsApp(refund: any, status: string) {
@@ -88,6 +114,6 @@ export async function sendRefundStatusWhatsApp(refund: any, status: string) {
     message = `Hi ${name}! Your refund request for booking #VN${refund.bookingId} status is now: ${status}.`;
   }
 
-  return sendAndLog(phone, message);
+  return sendAndLog(phone, message, 'outbound', 'Refund Update');
 }
 

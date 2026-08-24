@@ -83,114 +83,50 @@ router.get('/whatsapp/logs', authenticate, requireRole('admin'), async (req: any
       order: { createdAt: 'DESC' },
     });
 
-    // Seed mock data if database is empty so it looks exactly like the user's dashboard screenshot
-    if (messages.length === 0) {
-      const mockGuests = [
-        { name: 'Rahul Sharma', phone: '919876543210', email: 'rahul.sharma@example.com', event: 'Anniversary Celebration', suite: 'Royal Celebration Suite', type: 'Invitation', status: 'Read' },
-        { name: 'Priya Desai', phone: '919876543211', email: 'priya.desai@example.com', event: 'Birthday Party', suite: 'Executive Premium Suite', type: 'Meeting Link', status: 'Read' },
-        { name: 'Arjun Mehta', phone: '919876543212', email: 'arjun.mehta@example.com', event: 'Corporate Dinner', suite: 'Royal Celebration Suite', type: 'Invitation', status: 'Sent' },
-        { name: 'Kavya Patel', phone: '919876543213', email: 'kavya.patel@example.com', event: 'Anniversary Celebration', suite: 'Executive Premium Suite', type: 'Reminder', status: 'Failed' },
-        { name: 'Nikhil Singh', phone: '919876543214', email: 'nikhil.singh@example.com', event: 'Birthday Party', suite: 'Royal Celebration Suite', type: 'Meeting Link', status: 'Delivered' },
-      ];
-
-      const types = ['Invitation', 'Reminder', 'Meeting Link', 'OTP', 'Booking Confirmation', 'Payment Success'];
-      const suitesList = ['Royal Celebration Suite', 'Executive Premium Suite', 'Garden Premium Suite'];
-      const eventsList = ['Anniversary Celebration', 'Birthday Party', 'Corporate Dinner', 'Family Gathering'];
-
-      // Generate 125 mock messages for pagination demo matching screenshot
-      for (let i = 0; i < 125; i++) {
-        const guestIndex = i % mockGuests.length;
-        const baseGuest = mockGuests[guestIndex];
-        
-        let status = 'Read';
-        const statusRand = Math.random();
-        if (statusRand < 0.05) status = 'Failed';
-        else if (statusRand < 0.10) status = 'Pending';
-        else if (statusRand < 0.20) status = 'Sent';
-        else if (statusRand < 0.35) status = 'Delivered';
-
-        const typeRand = types[i % types.length];
-        const suiteRand = suitesList[i % suitesList.length];
-        const eventRand = eventsList[i % eventsList.length];
-
-        const date = new Date();
-        date.setDate(date.getDate() - Math.floor(i / 5));
-        date.setHours(10 + (i % 8), 30 + (i % 30), 0);
-
-        const waMsgId = `wa_msg_${125 - i}`;
-
-        await msgRepo.save({
-          phone: baseGuest.phone,
-          direction: 'outbound',
-          content: `Hi ${baseGuest.name}! This is a notification about your ${eventRand} at ${suiteRand}.`,
-          messageType: typeRand,
-          waMessageId: waMsgId,
-          waConversationId: `wa_conv_${i}`,
-          createdAt: date,
-        });
-
-        await eventRepo.save({
-          eventType: 'delivery',
-          phone: baseGuest.phone,
-          direction: 'outbound',
-          waMessageId: waMsgId,
-          status: status.toLowerCase(),
-          payload: {},
-          createdAt: date,
-        });
-      }
-
-      messages = await msgRepo.find({
-        order: { createdAt: 'DESC' },
-      });
-    }
-
     const bookings = await bookingRepo.find({ relations: ['user'] });
     const users = await userRepo.find();
 
     const result = [];
     for (const msg of messages) {
-      let guestName = 'Guest';
-      let guestEmail = 'No email';
-      let eventName = 'General Stay';
-      let suiteName = 'Royal Celebration Suite';
+      let guestName = 'Valued Guest';
+      let guestEmail = '-';
+      let eventName = '-';
+      let suiteName = '-';
       let eventDate = '';
       let eventTime = '';
 
       const cleanPhone = msg.phone.replace(/\D/g, '');
-      const userMatch = users.find(u => u.phone && u.phone.replace(/\D/g, '') === cleanPhone);
-      const bookingMatch = bookings.find(b => b.guestPhone && b.guestPhone.replace(/\D/g, '') === cleanPhone);
+      const matchPhone10 = cleanPhone.length > 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+      const userMatch = users.find(u => {
+        if (!u.phone) return false;
+        const uPhone = u.phone.replace(/\D/g, '');
+        return uPhone === cleanPhone || (uPhone.length > 10 ? uPhone.slice(-10) : uPhone) === matchPhone10;
+      });
+
+      const bookingMatch = bookings.find(b => {
+        const bPhone = (b.guestPhone || b.user?.phone || '').replace(/\D/g, '');
+        return bPhone === cleanPhone || (bPhone.length > 10 ? bPhone.slice(-10) : bPhone) === matchPhone10;
+      });
 
       if (userMatch) {
-        guestName = userMatch.fullName;
-        guestEmail = userMatch.email || 'No email';
+        guestName = userMatch.fullName || 'Valued Guest';
+        guestEmail = userMatch.email || '-';
       } else if (bookingMatch) {
-        guestName = `${bookingMatch.guestFirstName ?? ''} ${bookingMatch.guestLastName ?? ''}`.trim() || 'Guest';
-        guestEmail = bookingMatch.guestEmail || 'No email';
+        guestName = `${bookingMatch.guestFirstName ?? ''} ${bookingMatch.guestLastName ?? ''}`.trim() || 'Valued Guest';
+        guestEmail = bookingMatch.guestEmail || '-';
       }
 
-      const bookingForEvent = bookingMatch || bookings.find(b => b.user && b.user.phone && b.user.phone.replace(/\D/g, '') === cleanPhone);
-      if (bookingForEvent) {
-        eventName = bookingForEvent.eventType || 'Stay';
-        suiteName = bookingForEvent.suiteName || 'Royal Celebration Suite';
-        eventDate = bookingForEvent.date || '';
-        eventTime = bookingForEvent.timeSlot || '';
-      } else {
-        // Fallback for visual completeness matching screenshot
-        const cleanName = cleanPhone === '919876543210' ? 'Rahul Sharma' :
-                          cleanPhone === '919876543211' ? 'Priya Desai' :
-                          cleanPhone === '919876543212' ? 'Arjun Mehta' :
-                          cleanPhone === '919876543213' ? 'Kavya Patel' :
-                          cleanPhone === '919876543214' ? 'Nikhil Singh' : 'Guest';
-        guestName = cleanName;
-        guestEmail = `${cleanName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
-        eventName = 'Anniversary Celebration';
-        suiteName = 'Royal Celebration Suite';
+      if (bookingMatch) {
+        eventName = bookingMatch.eventType || 'Celebration Stay';
+        suiteName = bookingMatch.suiteName || 'Celebration Suite';
+        eventDate = bookingMatch.date || '';
+        eventTime = bookingMatch.timeSlot || '';
       }
 
       const events = msg.waMessageId ? await eventRepo.find({ where: { waMessageId: msg.waMessageId } }) : [];
       const lastEvent = events[events.length - 1];
-      let status = 'Sent';
+      let status: 'Read' | 'Delivered' | 'Sent' | 'Failed' | 'Pending' = 'Sent';
       if (lastEvent && lastEvent.status) {
         const rawStatus = lastEvent.status.toLowerCase();
         if (rawStatus === 'read') status = 'Read';
@@ -199,35 +135,37 @@ router.get('/whatsapp/logs', authenticate, requireRole('admin'), async (req: any
         else if (rawStatus === 'sent') status = 'Sent';
         else status = 'Pending';
       } else {
-        // Dynamic status simulation for local dev when no event is in DB
-        const ageInSeconds = (Date.now() - new Date(msg.createdAt).getTime()) / 1000;
-        if (msg.phone.endsWith('9') || msg.id % 19 === 0) {
-          status = 'Failed';
-        } else if (msg.id % 13 === 0) {
-          status = 'Pending';
-        } else if (ageInSeconds > 90) {
-          status = 'Read';
-        } else if (ageInSeconds > 25) {
-          status = 'Delivered';
-        } else {
-          status = 'Sent';
-        }
+        // Outbound WhatsApp messages sent via Meta Cloud API default to Sent or Delivered
+        status = msg.direction === 'outbound' ? 'Sent' : 'Read';
       }
 
-      let inferredType = msg.messageType || 'Other';
-      if (!msg.messageType) {
-        if (msg.content?.includes('OTP')) inferredType = 'OTP';
-        else if (msg.content?.includes('confirmed')) inferredType = 'Booking Confirmation';
-        else if (msg.content?.includes('Payment successful')) inferredType = 'Payment Success';
-        else if (msg.content?.includes('Welcome')) inferredType = 'Account Verification';
-        else if (msg.content?.includes('refund')) inferredType = 'Refund Update';
+      let inferredType = msg.messageType || '';
+      const contentLower = (msg.content || '').toLowerCase();
+      if (!inferredType || inferredType === 'text' || inferredType === 'Other') {
+        if (contentLower.includes('otp') || contentLower.includes('verification code')) {
+          inferredType = 'Login OTP Verification';
+        } else if (contentLower.includes('confirmed') || contentLower.includes('booking id')) {
+          inferredType = 'Booking Confirmation';
+        } else if (contentLower.includes('payment successful') || contentLower.includes('payment')) {
+          inferredType = 'Payment Success';
+        } else if (contentLower.includes('welcome') || contentLower.includes('account has been created')) {
+          inferredType = 'Account Verification';
+        } else if (contentLower.includes('refund')) {
+          inferredType = 'Refund Update';
+        } else if (contentLower.includes('celebration') || contentLower.includes('vibenests_celebration_booking')) {
+          inferredType = 'Marketing Broadcast';
+        } else if (msg.direction === 'inbound') {
+          inferredType = 'Inbound Message';
+        } else {
+          inferredType = 'Direct Notification';
+        }
       }
 
       result.push({
         id: msg.id,
         guestName,
         guestEmail,
-        mobileNumber: '+' + msg.phone,
+        mobileNumber: msg.phone.startsWith('+') ? msg.phone : '+' + msg.phone,
         eventName,
         suiteName,
         eventDate,

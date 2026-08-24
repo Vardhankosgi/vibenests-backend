@@ -44,10 +44,8 @@ router.post('/login', (0, validate_1.validateBody)(schemas_1.loginSchema), async
 });
 router.post('/otp/send', (0, validate_1.validateBody)(schemas_1.sendOtpSchema), async (req, res) => {
     const target = req.body.email || req.body.phone;
-    console.log(`[API /otp/send] Sending OTP request for: ${target}`);
     try {
         const result = await (0, otp_service_1.sendOtp)(req.body);
-        console.log(`[API /otp/send] Success response for ${target}:`, result);
         res.json(result);
     }
     catch (err) {
@@ -57,10 +55,8 @@ router.post('/otp/send', (0, validate_1.validateBody)(schemas_1.sendOtpSchema), 
 });
 router.post('/otp/verify', (0, validate_1.validateBody)(schemas_1.verifyOtpSchema), async (req, res) => {
     const target = req.body.email || req.body.phone || req.body.target;
-    console.log(`[API /otp/verify] Verification attempt for ${target}`);
     try {
         const data = await (0, otp_service_1.verifyOtp)(req.body, req.body.otp);
-        console.log(`[API /otp/verify] Verification successful for ${target}`);
         res.json(data);
     }
     catch (err) {

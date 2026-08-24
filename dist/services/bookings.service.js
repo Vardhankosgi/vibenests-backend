@@ -33,13 +33,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMeetingLink = exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.rescheduleBooking = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.adminCreateBooking = exports.createBooking = void 0;
+exports.getMeetingLink = exports.findAllBookings = exports.cancelBooking = exports.updateBookingPaymentStatus = exports.updateBookingStatus = exports.rescheduleBooking = exports.findBookingById = exports.findBookingByIdForUser = exports.findBookingsForUser = exports.manualCreateBooking = exports.adminCreateBooking = exports.createBooking = void 0;
 exports.handleBookingConfirmationSideEffects = handleBookingConfirmationSideEffects;
 const data_source_1 = require("../data-source");
 const Booking_1 = require("../entities/Booking");
 const User_1 = require("../entities/User");
 const Suite_1 = require("../entities/Suite");
 const AddOn_1 = require("../entities/AddOn");
+const Payment_1 = require("../entities/Payment");
 const UserMembership_1 = require("../entities/UserMembership");
 const SuiteAvailability_1 = require("../entities/SuiteAvailability");
 const typeorm_1 = require("typeorm");
@@ -168,6 +169,7 @@ const createBooking = async (payload) => {
             paymentStatus: isPackageCredit ? 'success' : 'pending',
             fullPaymentReceived: isPackageCredit ? true : false,
             couponCode: payload.couponCode || null,
+            specialOfferId: payload.specialOfferId ? Number(payload.specialOfferId) : null,
         });
         const savedBooking = await bookingRepo.save(booking);
         createdBookings.push(savedBooking);
@@ -294,6 +296,9 @@ const adminCreateBooking = async (payload) => {
             guestEmail: payload.guestEmail,
             guestPhone: payload.guestPhone,
             totalAmount: perSlotTotalAmount,
+            savings: payload.discountAmount || 0,
+            couponCode: payload.couponCode || undefined,
+            specialOfferId: payload.specialOfferId ? Number(payload.specialOfferId) : undefined,
             bookedBy: 'admin',
             status: 'confirmed',
             paymentStatus: 'success',
@@ -311,6 +316,15 @@ const adminCreateBooking = async (payload) => {
         }
     }
     const representativeBooking = createdBookings[0];
+    // Trigger confirmation side-effects (e.g. redeeming special offers, coupons, in-app notifications)
+    if (representativeBooking) {
+        try {
+            await handleBookingConfirmationSideEffects(representativeBooking.id);
+        }
+        catch (e) {
+            console.warn('Booking confirmation side effects failed for admin booking:', e);
+        }
+    }
     (0, notifications_service_1.sendBookingConfirmationEmail)({
         to: payload.guestEmail,
         guestName: fullName,
@@ -342,6 +356,206 @@ const adminCreateBooking = async (payload) => {
     return finalBookings;
 };
 exports.adminCreateBooking = adminCreateBooking;
+const manualCreateBooking = async (payload) => {
+    const bookingRepo = repo();
+    const userRepo = data_source_1.AppDataSource.getRepository(User_1.User);
+    const suiteRepo = data_source_1.AppDataSource.getRepository(Suite_1.Suite);
+    const addonRepo = data_source_1.AppDataSource.getRepository(AddOn_1.AddOn);
+    const availabilityRepo = data_source_1.AppDataSource.getRepository(SuiteAvailability_1.SuiteAvailability);
+    const paymentRepo = data_source_1.AppDataSource.getRepository(Payment_1.Payment);
+    // Normalize timeSlots
+    payload.timeSlots = normalizeTimeSlots(payload.timeSlots ?? payload.timeSlot);
+    if (!Array.isArray(payload.timeSlots) || payload.timeSlots.length === 0) {
+        throw new Error('timeSlots must contain at least 1 slot');
+    }
+    // 1. Check availability
+    for (const ts of payload.timeSlots) {
+        const exists = await bookingRepo.findOne({
+            where: {
+                suiteId: payload.suiteId,
+                date: payload.date,
+                timeSlot: ts,
+                status: (0, typeorm_1.In)(['confirmed', 'pending', 'completed']),
+            },
+        });
+        if (exists)
+            throw new Error(`Slot ${ts} already booked for this date and time`);
+        const blocked = await availabilityRepo.findOne({
+            where: {
+                suiteId: payload.suiteId,
+                date: payload.date,
+                timeSlot: ts,
+                status: 'blocked',
+            },
+        });
+        if (blocked)
+            throw new Error(`Slot ${ts} is blocked by administration`);
+    }
+    // 2. Resolve User (Existing User by userId, or by Email, or by Phone, or create new)
+    let guestUser = null;
+    if (payload.userId) {
+        guestUser = await userRepo.findOneBy({ id: payload.userId });
+    }
+    const guestEmailVal = payload.guestEmail?.trim() || '';
+    const guestPhoneVal = payload.guestPhone?.trim() || '';
+    const fullName = `${payload.guestFirstName} ${payload.guestLastName || ''}`.trim();
+    if (!guestUser && guestEmailVal) {
+        guestUser = await userRepo.findOneBy({ email: guestEmailVal });
+    }
+    if (!guestUser && guestPhoneVal) {
+        guestUser = await userRepo.findOneBy({ phone: guestPhoneVal });
+    }
+    let isNewUser = false;
+    if (!guestUser) {
+        isNewUser = true;
+        guestUser = userRepo.create({
+            fullName,
+            email: guestEmailVal,
+            phone: guestPhoneVal,
+            role: 'customer',
+            isVerified: false,
+            isActive: true,
+        });
+        guestUser = await userRepo.save(guestUser);
+    }
+    else {
+        let shouldUpdate = false;
+        if (!guestUser.fullName && fullName) {
+            guestUser.fullName = fullName;
+            shouldUpdate = true;
+        }
+        if (!guestUser.phone && guestPhoneVal) {
+            guestUser.phone = guestPhoneVal;
+            shouldUpdate = true;
+        }
+        if (shouldUpdate) {
+            await userRepo.save(guestUser);
+        }
+    }
+    const orderId = await generateUniqueOrderId(bookingRepo);
+    const suite = await suiteRepo.findOneBy({ id: payload.suiteId });
+    const suiteName = suite?.name ?? `Suite ${payload.suiteId}`;
+    const numSlots = (payload.timeSlots ?? []).length;
+    const perSlotTotalAmount = Number(payload.totalAmount) / numSlots;
+    const perSlotBasePrice = ((payload.basePrice ?? suite?.price ?? payload.totalAmount)) / numSlots;
+    const perSlotAddonsTotal = (payload.addonsTotal ?? 0) / numSlots;
+    const perSlotDiscount = (payload.discountAmount ?? 0) / numSlots;
+    const perSlotTaxes = (payload.taxAmount ?? 0) / numSlots;
+    const advanceAmount = Number(payload.advanceAmount ?? 0);
+    const totalAmount = Number(payload.totalAmount);
+    const paymentMode = payload.paymentMode || 'cash';
+    const paymentStatus = payload.paymentStatus || (advanceAmount >= totalAmount ? 'success' : advanceAmount > 0 ? 'partial' : 'pending');
+    const fullPaymentReceived = paymentStatus === 'success' || advanceAmount >= totalAmount;
+    const rawAddons = (payload.addOns || []).map(String);
+    const createdBookings = [];
+    for (const ts of payload.timeSlots ?? []) {
+        let endTimeSlot = '';
+        if (suite) {
+            endTimeSlot = computeEndTimeSlot(suite, ts);
+        }
+        const booking = bookingRepo.create({
+            orderId,
+            user: { id: guestUser.id },
+            userId: guestUser.id,
+            suiteId: payload.suiteId,
+            suiteName,
+            eventType: payload.eventType,
+            addOns: rawAddons,
+            date: payload.date,
+            timeSlot: ts,
+            endTimeSlot,
+            guestFirstName: payload.guestFirstName,
+            guestLastName: payload.guestLastName || '',
+            guestEmail: guestEmailVal,
+            guestPhone: guestPhoneVal,
+            persons: payload.persons ?? 2,
+            basePrice: perSlotBasePrice,
+            addonsTotal: perSlotAddonsTotal,
+            savings: perSlotDiscount,
+            taxes: perSlotTaxes,
+            totalAmount: perSlotTotalAmount,
+            advanceAmount: advanceAmount / numSlots,
+            paymentMode: paymentMode === 'cash' ? 'pay_at_venue' : paymentMode,
+            bookedBy: 'in_person_manual',
+            status: 'confirmed',
+            paymentStatus: paymentStatus === 'partial' ? 'pending' : paymentStatus,
+            fullPaymentReceived,
+            couponCode: payload.couponCode || undefined,
+            specialOfferId: payload.specialOfferId ? Number(payload.specialOfferId) : undefined,
+        });
+        const savedBooking = await bookingRepo.save(booking);
+        createdBookings.push(savedBooking);
+    }
+    const primaryBooking = createdBookings[0];
+    // 3. Create Payment Transaction Record (Synced with Transactions & Revenue Reports!)
+    const collectedAmount = fullPaymentReceived ? totalAmount : advanceAmount;
+    if (collectedAmount > 0) {
+        const payment = paymentRepo.create({
+            bookingId: primaryBooking.id,
+            amount: collectedAmount,
+            method: paymentMode,
+            provider: paymentMode,
+            status: 'success',
+            providerPaymentId: payload.paymentReferenceId?.trim() || `${paymentMode.toUpperCase()}_MANUAL_${Date.now()}`,
+            providerOrderId: orderId,
+        });
+        await paymentRepo.save(payment);
+    }
+    // 4. Resolve addon names
+    let addonNames = [];
+    if (rawAddons.length) {
+        const ids = rawAddons.map(Number).filter(Boolean);
+        if (ids.length) {
+            const addons = await addonRepo.findBy({ id: (0, typeorm_1.In)(ids) });
+            addonNames = addons.map((a) => a.name);
+        }
+    }
+    // 5. Booking side-effects
+    if (primaryBooking) {
+        try {
+            await handleBookingConfirmationSideEffects(primaryBooking.id);
+        }
+        catch (e) {
+            console.warn('Booking confirmation side effects failed for manual booking:', e);
+        }
+    }
+    // 6. Notifications
+    if (payload.sendNotification !== false) {
+        if (guestEmailVal) {
+            (0, notifications_service_1.sendBookingConfirmationEmail)({
+                to: guestEmailVal,
+                guestName: fullName,
+                bookingId: primaryBooking.id,
+                suiteName,
+                date: payload.date,
+                startTime: (payload.timeSlots ?? []).join(', '),
+                endTime: '',
+                occasion: payload.eventType,
+                addOns: addonNames,
+                totalAmount: payload.totalAmount,
+            }).catch((e) => console.warn('Manual booking confirmation email failed:', e?.message));
+        }
+        if (guestPhoneVal) {
+            (0, whatsapp_notifications_service_1.sendBookingConfirmedWhatsApp)({
+                id: primaryBooking.id,
+                guestPhone: guestPhoneVal,
+                guestFirstName: payload.guestFirstName,
+                guestLastName: payload.guestLastName || '',
+            }).catch(() => undefined);
+        }
+        if (isNewUser && guestEmailVal) {
+            const resetToken = await (0, auth_service_1.generatePasswordResetToken)(guestUser.id);
+            (0, notifications_service_1.sendPasswordSetupEmail)({
+                to: guestEmailVal,
+                guestName: fullName,
+                resetToken,
+            }).catch(() => undefined);
+        }
+    }
+    const finalBookings = await bookingRepo.find({ where: { orderId }, relations: ['user'] });
+    return finalBookings;
+};
+exports.manualCreateBooking = manualCreateBooking;
 const findBookingsForUser = async (userId) => {
     const bookingRepo = repo();
     return bookingRepo.find({ where: { user: { id: userId } }, relations: ['user'], order: { createdAt: 'DESC' } });
@@ -624,6 +838,33 @@ async function handleBookingConfirmationSideEffects(bookingId) {
             }
             catch (err) {
                 console.warn('Coupon usage tracking failed:', err?.message);
+            }
+        }
+        // 3. Process Special Offer Redemption
+        if (booking.userId) {
+            try {
+                const { redeemSpecialOffer } = require('./offers.service');
+                if (booking.specialOfferId) {
+                    await redeemSpecialOffer(Number(booking.specialOfferId), Number(booking.userId), booking.id);
+                }
+                else if (booking.suiteId) {
+                    // If special offer wasn't explicitly passed, check if user had an assigned offer for this suite
+                    const { OfferAssignment } = require('../entities/OfferAssignment');
+                    const assignmentRepo = data_source_1.AppDataSource.getRepository(OfferAssignment);
+                    const activeAssign = await assignmentRepo.findOne({
+                        where: {
+                            userId: Number(booking.userId),
+                            status: 'assigned',
+                        },
+                        relations: ['offer'],
+                    });
+                    if (activeAssign && activeAssign.offer && Number(activeAssign.offer.suiteId) === Number(booking.suiteId)) {
+                        await redeemSpecialOffer(activeAssign.offerId, Number(booking.userId), booking.id);
+                    }
+                }
+            }
+            catch (err) {
+                console.warn('Special offer redemption side effect failed:', err?.message);
             }
         }
     }

@@ -141,6 +141,10 @@ __decorate([
     __metadata("design:type", String)
 ], Booking.prototype, "couponCode", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ nullable: true }),
+    __metadata("design:type", Number)
+], Booking.prototype, "specialOfferId", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 0 }),
     __metadata("design:type", Number)
 ], Booking.prototype, "rescheduleCount", void 0);
