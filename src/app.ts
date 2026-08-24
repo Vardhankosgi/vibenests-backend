@@ -79,5 +79,6 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 app.get('/', (_req, res) => res.json({ message: 'VibeNests API v2' }));
+app.get('/health', (_req, res) => res.status(200).json({ status: 'ok', uptime: process.uptime() }));
 
 export default app;
