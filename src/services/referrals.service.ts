@@ -7,6 +7,7 @@ import { ReferralReward } from '../entities/ReferralReward';
 import { ReferralTransaction } from '../entities/ReferralTransaction';
 import { OfferConfiguration } from '../entities/OfferConfiguration';
 import { Repository } from 'typeorm';
+import { sendCouponOfferWhatsApp } from './whatsapp-notifications.service';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const couponRepo = () => AppDataSource.getRepository(Coupon);
@@ -189,6 +190,17 @@ export async function issueReferrerReward(relationship: ReferralRelationship): P
     description: `Referral reward coupon ${couponCode} (value: ₹${rewardValue}) issued to referrer ${referrer?.fullName || 'User'}.`,
   });
   await refTransactionRepo().save(txn);
+
+  if (referrer?.phone) {
+    const discountText = `₹${rewardValue} OFF`;
+    const validUntil = new Date(Date.now() + 90 * 86400000).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    sendCouponOfferWhatsApp(referrer.phone, {
+      guestName: referrer.fullName || 'Valued Member',
+      couponCode,
+      discountText,
+      validUntil,
+    }).catch((err) => console.warn('[Referral Coupon WhatsApp Error]', err?.message || err));
+  }
 
   return savedReward;
 }

@@ -10,7 +10,7 @@ import { In } from 'typeorm';
 import { randomUUID, randomBytes, randomInt } from 'crypto';
 import { generatePasswordResetToken } from './auth.service';
 import { sendBookingConfirmationEmail, sendBookingReceivedEmail, sendPasswordSetupEmail } from './notifications.service';
-import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp } from './whatsapp-notifications.service';
+import { sendAccountCreatedWhatsApp, sendBookingConfirmedWhatsApp, sendBookingCancelledWhatsApp } from './whatsapp-notifications.service';
 import { Coupon } from '../entities/Coupon';
 import { validateCoupon } from './coupons.service';
 import { createAppNotification } from './app-notifications.service';
@@ -77,7 +77,7 @@ export const createBooking = async (payload: {
 
   if (payload.suiteId !== 0) {
     const availabilityRepo = AppDataSource.getRepository(SuiteAvailability);
-  for (const ts of (payload as any).timeSlots) {
+    for (const ts of (payload as any).timeSlots) {
       const exists = await bookingRepo.findOne({
         where: {
           suiteId: payload.suiteId,
@@ -385,12 +385,17 @@ export const adminCreateBooking = async (payload: {
   }
 
   const finalBookings = await bookingRepo.find({ where: { orderId }, relations: ['user'] });
-  
+
   sendBookingConfirmedWhatsApp({
     id: representativeBooking.id,
     guestPhone: payload.guestPhone,
     guestFirstName: payload.guestFirstName,
     guestLastName: payload.guestLastName,
+    suiteName: representativeBooking.suiteName,
+    date: representativeBooking.date,
+    timeSlot: representativeBooking.timeSlot,
+    persons: representativeBooking.persons ?? payload.persons,
+    guestCount: representativeBooking.persons ?? payload.persons,
   }).catch(() => undefined);
 
   return finalBookings;
@@ -622,6 +627,11 @@ export const manualCreateBooking = async (payload: {
         guestPhone: guestPhoneVal,
         guestFirstName: payload.guestFirstName,
         guestLastName: payload.guestLastName || '',
+        suiteName: primaryBooking.suiteName,
+        date: primaryBooking.date,
+        timeSlot: primaryBooking.timeSlot,
+        persons: primaryBooking.persons ?? payload.persons,
+        guestCount: primaryBooking.persons ?? payload.persons,
       }).catch(() => undefined);
     }
 
@@ -716,7 +726,7 @@ export const rescheduleBooking = async (
 
     const eventDate = new Date(year, month - 1, day, hh, mm, 0);
     const now = new Date();
-    
+
     const hoursBeforeEvent = (eventDate.getTime() - now.getTime()) / (1000 * 60 * 60);
     if (hoursBeforeEvent < 24) {
       throw new Error('Rescheduling is only allowed up to 24 hours before the scheduled event time.');
@@ -893,15 +903,21 @@ export const cancelBooking = async (id: number, userId: number, reason?: string,
   if (requestingRole === 'admin') {
     whereClause = { id };
   }
-  const booking = await repo().findOne({ where: whereClause });
+  const booking = await repo().findOne({ where: whereClause, relations: ['user'] });
   if (!booking) throw new Error('Booking not found');
   if (booking.status === 'cancelled') throw new Error('Booking already cancelled');
 
   booking.status = 'cancelled';
   booking.cancellationReason = reason?.trim() ? reason.trim() : undefined;
 
+  const saved = await repo().save(booking);
 
-  return repo().save(booking);
+  // Send WhatsApp cancellation notification using booking_cancellation template
+  sendBookingCancelledWhatsApp(saved).catch((err) =>
+    console.warn('[Cancel Booking WhatsApp Error]', err?.message || err)
+  );
+
+  return saved;
 };
 
 

@@ -1,7 +1,15 @@
 import express from 'express';
 import { authenticate, requireRole } from '../middleware/auth';
 import { sendEmail, sendSms, sendWhatsApp, smtpHealthCheck } from '../services/notifications.service';
-import { sendCelebrationBookingMarketingMessage, sendTemplateMessage } from '../services/whatsapp.service';
+import {
+  sendCelebrationBookingMarketingMessage,
+  sendTemplateMessage,
+  sendBookingConfirmationWhatsAppTemplate,
+  sendBookingCancellationWhatsAppTemplate,
+  sendRefundConfirmationWhatsAppTemplate,
+  sendCouponOfferWhatsAppTemplate,
+  sendLoginOtp,
+} from '../services/whatsapp.service';
 import { AppDataSource } from '../data-source';
 import { WhatsAppMessage } from '../entities/WhatsAppMessage';
 import { WhatsAppEvent } from '../entities/WhatsAppEvent';
@@ -32,35 +40,94 @@ router.post('/send/sms', authenticate, requireRole('admin'), async (req: any, re
 
 router.post('/send/whatsapp', authenticate, requireRole('admin'), async (req: any, res) => {
   try {
-    const { phone, message, messageType, templateName, userName } = req.body;
-    const cleanPhone = phone.replace(/\D/g, '');
-    let result: any;
+    const {
+      phone,
+      message,
+      messageType,
+      templateName,
+      userName,
+      bookingId,
+      suiteName,
+      checkIn,
+      checkOut,
+      guestsCount,
+      checkInDate,
+      cancellationDate,
+      refundAmount,
+      refundReference,
+      couponCode,
+      discountText,
+      validUntil,
+    } = req.body;
 
-    if (templateName === 'vibenests_celebration_booking') {
+    const cleanPhone = phone ? String(phone).replace(/\D/g, '') : '';
+    if (!cleanPhone) {
+      return res.status(400).json({ message: 'Valid phone number is required' });
+    }
+
+    let result: any;
+    let loggedContent = message || '';
+    let resolvedType = messageType || templateName || 'General Notification';
+
+    if (templateName === 'booking_confirmation') {
+      result = await sendBookingConfirmationWhatsAppTemplate(cleanPhone, {
+        guestName: userName || 'Valued Guest',
+        bookingId: bookingId || '#VN-BOOKING',
+        suiteName: suiteName || 'Celebration Suite',
+        checkIn: checkIn || 'Confirmed Date & Slot',
+        checkOut: checkOut || 'End of Slot',
+        guestsCount: guestsCount || '2 Guests',
+      });
+      resolvedType = 'Booking Confirmation';
+      loggedContent = `Dear ${userName || 'Valued Guest'}, Your booking at Vibenests has been confirmed successfully. Booking ID: ${bookingId || '#VN-BOOKING'} Suite: ${suiteName || 'Celebration Suite'} Check-in: ${checkIn || 'Confirmed Date & Slot'} Check-out: ${checkOut || 'End of Slot'} Guests: ${guestsCount || '2 Guests'} We look forward to welcoming you to Vibenests and making your stay comfortable and memorable. Thank you for choosing Vibenests.`;
+    } else if (templateName === 'booking_cancellation') {
+      result = await sendBookingCancellationWhatsAppTemplate(cleanPhone, {
+        guestName: userName || 'Valued Guest',
+        bookingId: bookingId || '#VN-BOOKING',
+        suiteName: suiteName || 'Celebration Suite',
+        checkInDate: checkInDate || 'Scheduled Date',
+        cancellationDate: cancellationDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      });
+      resolvedType = 'Booking Cancellation';
+      loggedContent = `Dear ${userName || 'Valued Guest'}, Your booking at Vibenests has been cancelled successfully. Booking ID: ${bookingId || '#VN-BOOKING'} Room/Suite: ${suiteName || 'Celebration Suite'} Check-in Date: ${checkInDate || 'Scheduled Date'} Cancellation Date: ${cancellationDate || new Date().toLocaleDateString('en-GB')} If applicable, your refund will be processed according to the cancellation and refund policy. Thank you for choosing Vibenests.`;
+    } else if (templateName === 'refund_confirmation') {
+      result = await sendRefundConfirmationWhatsAppTemplate(cleanPhone, {
+        guestName: userName || 'Valued Guest',
+        bookingId: bookingId || '#VN-BOOKING',
+        refundAmount: refundAmount || '0',
+        refundReference: refundReference || ('RFND-' + Date.now()),
+      });
+      resolvedType = 'Refund Update';
+      loggedContent = `Dear ${userName || 'Valued Guest'}, Your refund for the Vibenests booking has been successfully initiated. Booking ID: ${bookingId || '#VN-BOOKING'} Refund Amount: ₹${refundAmount || '0'} Refund Reference: ${refundReference || ('RFND-' + Date.now())} The amount will be credited to your original payment method as per the payment provider's processing timeline. Thank you for choosing Vibenests.`;
+    } else if (templateName === 'coupon_offer') {
+      result = await sendCouponOfferWhatsAppTemplate(cleanPhone, {
+        guestName: userName || 'Valued Guest',
+        couponCode: couponCode || 'VIBEEXCLUSIVE',
+        discountText: discountText || 'Special Discount',
+        validUntil: validUntil || '31 Dec 2026',
+      });
+      resolvedType = 'Special Offer';
+      loggedContent = `Dear ${userName || 'Valued Guest'}, Enjoy an exclusive offer from Vibenests! ✨ Use coupon code ${couponCode || 'VIBEEXCLUSIVE'} and get ${discountText || 'Special Discount'} on your next stay. Offer valid until: ${validUntil || '31 Dec 2026'} Book your stay and experience comfort at Vibenests. Terms & conditions apply.`;
+    } else if (templateName === 'vibenests_celebration_booking') {
       result = await sendCelebrationBookingMarketingMessage(cleanPhone, userName || 'Guest', templateName);
+      resolvedType = 'Marketing Promotion';
+      loggedContent = `Welcome to VibeNests, ${userName || 'Guest'}! ✨ Make your celebrations unforgettable in our private luxury suites.`;
     } else if (templateName === 'login_otp') {
       const otpCode = String(Math.floor(100000 + Math.random() * 900000));
-      result = await sendTemplateMessage({
-        to: cleanPhone,
-        templateName: 'login_otp',
-        languageCode: 'en',
-        components: [
-          {
-            type: 'body',
-            parameters: [{ type: 'text', text: otpCode }],
-          },
-        ],
-      });
+      result = await sendLoginOtp(cleanPhone, otpCode, userName || 'Guest');
+      resolvedType = 'Login OTP Verification';
+      loggedContent = `Your VibeNests verification code is ${otpCode}. Valid for 5 minutes. Do not share this code with anyone.`;
     } else {
       result = await sendWhatsApp(cleanPhone, message);
+      loggedContent = message;
     }
     
     // Log outbound message in DB
     await AppDataSource.getRepository(WhatsAppMessage).save({
       phone: cleanPhone,
       direction: 'outbound',
-      content: message,
-      messageType: messageType || templateName || 'text',
+      content: loggedContent,
+      messageType: resolvedType,
       waMessageId: result?.messageId || ('admin_custom_' + Date.now()),
       waConversationId: null,
     });
@@ -144,7 +211,9 @@ router.get('/whatsapp/logs', authenticate, requireRole('admin'), async (req: any
       if (!inferredType || inferredType === 'text' || inferredType === 'Other') {
         if (contentLower.includes('otp') || contentLower.includes('verification code')) {
           inferredType = 'Login OTP Verification';
-        } else if (contentLower.includes('confirmed') || contentLower.includes('booking id')) {
+        } else if (contentLower.includes('cancelled') || contentLower.includes('cancellation')) {
+          inferredType = 'Booking Cancellation';
+        } else if (contentLower.includes('confirmed') || contentLower.includes('booking at vibenests has been confirmed')) {
           inferredType = 'Booking Confirmation';
         } else if (contentLower.includes('payment successful') || contentLower.includes('payment')) {
           inferredType = 'Payment Success';
@@ -152,8 +221,10 @@ router.get('/whatsapp/logs', authenticate, requireRole('admin'), async (req: any
           inferredType = 'Account Verification';
         } else if (contentLower.includes('refund')) {
           inferredType = 'Refund Update';
+        } else if (contentLower.includes('coupon') || contentLower.includes('exclusive offer')) {
+          inferredType = 'Special Offer';
         } else if (contentLower.includes('celebration') || contentLower.includes('vibenests_celebration_booking')) {
-          inferredType = 'Marketing Broadcast';
+          inferredType = 'Marketing Promotion';
         } else if (msg.direction === 'inbound') {
           inferredType = 'Inbound Message';
         } else {

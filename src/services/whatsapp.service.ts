@@ -275,6 +275,184 @@ export async function sendCelebrationBookingMarketingMessage(
 }
 
 /**
+ * 1. Booking Confirmation Template: booking_confirmation
+ * Template: "Dear {{1}}, Your booking at Vibenests has been confirmed successfully. Booking ID: {{2}} Suite: {{3}} Check-in: {{4}} Check-out: {{5}} Guests: {{6}} We look forward to welcoming you to Vibenests and making your stay comfortable and memorable. Thank you for choosing Vibenests."
+ */
+export async function sendBookingConfirmationWhatsAppTemplate(
+  phone: string,
+  params: {
+    guestName?: string;
+    bookingId?: string | number;
+    suiteName?: string;
+    checkIn?: string;
+    checkOut?: string;
+    guestsCount?: string | number;
+  }
+): Promise<WhatsAppSendResult> {
+  const config = getWhatsAppConfig();
+  const guestName = String(params.guestName || 'Valued Guest').trim();
+  const bookingId = String(params.bookingId || 'VN-BOOKING').trim();
+  const suiteName = String(params.suiteName || 'Celebration Suite').trim();
+  const checkIn = String(params.checkIn || 'Confirmed Date & Slot').trim();
+  const checkOut = String(params.checkOut || 'End of Slot').trim();
+  const guestsCount = String(params.guestsCount || '2').trim();
+
+  const components: TemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: guestName },
+        { type: 'text', text: bookingId },
+        { type: 'text', text: suiteName },
+        { type: 'text', text: checkIn },
+        { type: 'text', text: checkOut },
+        { type: 'text', text: guestsCount },
+      ],
+    },
+  ];
+
+  console.log(`[WHATSAPP BOOKING CONFIRMATION INITIATED] Sending "booking_confirmation" to ${maskPhoneNumber(phone)}`);
+
+  return sendTemplateMessage({
+    to: phone,
+    templateName: 'booking_confirmation',
+    languageCode: config.otpTemplateLanguage || 'en',
+    components,
+  });
+}
+
+/**
+ * 2. Booking Cancellation Template: booking_cancellation
+ * Template: "Dear {{1}}, Your booking at Vibenests has been cancelled successfully. Booking ID: {{2}} Room/Suite: {{3}} Check-in Date: {{4}} Cancellation Date: {{5}} If applicable, your refund will be processed according to the cancellation and refund policy. Thank you for choosing Vibenests."
+ */
+export async function sendBookingCancellationWhatsAppTemplate(
+  phone: string,
+  params: {
+    guestName?: string;
+    bookingId?: string | number;
+    suiteName?: string;
+    checkInDate?: string;
+    cancellationDate?: string;
+  }
+): Promise<WhatsAppSendResult> {
+  const config = getWhatsAppConfig();
+  const guestName = String(params.guestName || 'Valued Guest').trim();
+  const bookingId = String(params.bookingId || 'VN-BOOKING').trim();
+  const suiteName = String(params.suiteName || 'Celebration Suite').trim();
+  const checkInDate = String(params.checkInDate || 'Scheduled Date').trim();
+  const cancellationDate = String(
+    params.cancellationDate || new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  ).trim();
+
+  const components: TemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: guestName },
+        { type: 'text', text: bookingId },
+        { type: 'text', text: suiteName },
+        { type: 'text', text: checkInDate },
+        { type: 'text', text: cancellationDate },
+      ],
+    },
+  ];
+
+  console.log(`[WHATSAPP BOOKING CANCELLATION INITIATED] Sending "booking_cancellation" to ${maskPhoneNumber(phone)}`);
+
+  return sendTemplateMessage({
+    to: phone,
+    templateName: 'booking_cancellation',
+    languageCode: config.otpTemplateLanguage || 'en',
+    components,
+  });
+}
+
+/**
+ * 3. Refund Confirmation Template: refund_confirmation
+ * Template: "Dear {{1}}, Your refund for the Vibenests booking has been successfully initiated. Booking ID: {{2}} Refund Amount: ₹{{3}} Refund Reference: {{4}} The amount will be credited to your original payment method as per the payment provider's processing timeline. Thank you for choosing Vibenests."
+ */
+export async function sendRefundConfirmationWhatsAppTemplate(
+  phone: string,
+  params: {
+    guestName?: string;
+    bookingId?: string | number;
+    refundAmount?: string | number;
+    refundReference?: string;
+  }
+): Promise<WhatsAppSendResult> {
+  const config = getWhatsAppConfig();
+  const guestName = String(params.guestName || 'Valued Guest').trim();
+  const bookingId = String(params.bookingId || 'VN-BOOKING').trim();
+  const cleanAmount = typeof params.refundAmount === 'number'
+    ? params.refundAmount.toLocaleString('en-IN')
+    : String(params.refundAmount || '0').replace(/[₹,]/g, '').trim();
+  const refundAmount = Number(cleanAmount || 0).toLocaleString('en-IN');
+  const refundReference = String(params.refundReference || 'RFND-' + Date.now()).trim();
+
+  const components: TemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: guestName },
+        { type: 'text', text: bookingId },
+        { type: 'text', text: refundAmount },
+        { type: 'text', text: refundReference },
+      ],
+    },
+  ];
+
+  console.log(`[WHATSAPP REFUND CONFIRMATION INITIATED] Sending "refund_confirmation" to ${maskPhoneNumber(phone)}`);
+
+  return sendTemplateMessage({
+    to: phone,
+    templateName: 'refund_confirmation',
+    languageCode: config.otpTemplateLanguage || 'en',
+    components,
+  });
+}
+
+/**
+ * 4. Coupon Offer Template: coupon_offer
+ * Template: "Dear {{1}}, Enjoy an exclusive offer from Vibenests! ✨ Use coupon code {{2}} and get {{3}} on your next stay. Offer valid until: {{4}} Book your stay and experience comfort at Vibenests. Terms & conditions apply."
+ */
+export async function sendCouponOfferWhatsAppTemplate(
+  phone: string,
+  params: {
+    guestName?: string;
+    couponCode?: string;
+    discountText?: string;
+    validUntil?: string;
+  }
+): Promise<WhatsAppSendResult> {
+  const config = getWhatsAppConfig();
+  const guestName = String(params.guestName || 'Valued Guest').trim();
+  const couponCode = String(params.couponCode || 'VIBEEXCLUSIVE').trim();
+  const discountText = String(params.discountText || 'Special Discount').trim();
+  const validUntil = String(params.validUntil || '31 Dec 2026').trim();
+
+  const components: TemplateComponent[] = [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: guestName },
+        { type: 'text', text: couponCode },
+        { type: 'text', text: discountText },
+        { type: 'text', text: validUntil },
+      ],
+    },
+  ];
+
+  console.log(`[WHATSAPP COUPON OFFER INITIATED] Sending "coupon_offer" to ${maskPhoneNumber(phone)}`);
+
+  return sendTemplateMessage({
+    to: phone,
+    templateName: 'coupon_offer',
+    languageCode: config.otpTemplateLanguage || 'en',
+    components,
+  });
+}
+
+/**
  * Helper to verify Meta Webhook GET subscription handshake.
  */
 export function verifyWebhook(
@@ -303,5 +481,9 @@ export default {
   sendTemplateMessage,
   sendLoginOtp,
   sendCelebrationBookingMarketingMessage,
+  sendBookingConfirmationWhatsAppTemplate,
+  sendBookingCancellationWhatsAppTemplate,
+  sendRefundConfirmationWhatsAppTemplate,
+  sendCouponOfferWhatsAppTemplate,
   verifyWebhook,
 };

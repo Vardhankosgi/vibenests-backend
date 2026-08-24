@@ -343,6 +343,10 @@ export const sendPaymentSuccessNotifications = async (payment: Payment) => {
       amount: Number(payment.amount),
       guestFirstName: booking.guestFirstName,
       guestLastName: booking.guestLastName,
+      suiteName: booking.suiteName,
+      date: booking.date,
+      timeSlot: booking.timeSlot,
+      guestCount: (booking as any).guestCount,
     } as any);
 
     const appNotifCustomer = createAppNotification({
